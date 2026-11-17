@@ -1,0 +1,2744 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">後台管理網站</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Papa Parse for Google Sheets CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- SortableJS for Drag-and-Drop Reordering (Desktop & Mobile Touch) -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        sky: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        indigo: {
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
+        /* Mobile touch optimizations */
+        button, select, input {
+            touch-action: manipulation;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 flex flex-col min-h-screen overflow-x-hidden">
+
+    <!-- Header (Fully Responsive) -->
+    <header class="bg-sky-900 text-white sticky top-0 z-40 shadow-md">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2">
+            <div class="flex items-center space-x-2.5 min-w-0">
+                <div id="header-logo-container" class="w-10 h-10 sm:w-12 sm:h-12 bg-sky-600 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-md shadow-sky-500/20 flex-shrink-0 overflow-hidden">
+                    <i id="header-logo-icon" class="fa-solid fa-gauge-high text-lg sm:text-2xl"></i>
+                    <img id="header-logo-img" src="" alt="Logo" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('header-logo-icon').classList.remove('hidden');">
+                </div>
+                <div class="min-w-0">
+                    <h1 class="text-base sm:text-xl font-bold tracking-wide truncate">後台管理網站</h1>
+                    <p id="admin-subtitle" class="text-[11px] sm:text-xs text-sky-200 font-medium truncate">載入店家資訊中...</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-1.5 sm:space-x-3 flex-shrink-0">
+                <button onclick="loadSpreadsheetData()" class="flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl bg-sky-800 hover:bg-sky-700 active:scale-95 transition font-medium text-xs sm:text-sm border border-sky-700" title="重新載入資料">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span class="hidden sm:inline">重新同步</span>
+                </button>
+                <a href="https://joce-yu.github.io/ordersystem/" target="_blank" class="flex items-center space-x-1.5 px-3 py-2 sm:px-4 sm:py-2 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 transition font-medium text-xs sm:text-sm shadow">
+                    <i class="fa-solid fa-store"></i>
+                    <span>前台</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Admin Container (Responsive padding & max-width) -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 flex-grow w-full space-y-4 sm:space-y-6">
+
+        <!-- Navigation Tabs (Sticky & Scrollable on mobile) -->
+        <div class="sticky top-16 sm:top-20 z-30 bg-slate-50/95 backdrop-blur-sm py-2 -mx-3 px-3 sm:mx-0 sm:px-0 border-b border-slate-200">
+            <div class="flex space-x-2 overflow-x-auto no-scrollbar">
+                <button onclick="switchTab('orders')" id="tab-btn-orders" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-sky-600 text-white shadow flex-shrink-0">
+                    <i class="fa-solid fa-receipt mr-1.5"></i> 訂單查詢
+                </button>
+                <button onclick="switchTab('menu')" id="tab-btn-menu" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    <i class="fa-solid fa-mug-saucer mr-1.5"></i> 飲料菜單
+                </button>
+                <button onclick="switchTab('categories')" id="tab-btn-categories" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    <i class="fa-solid fa-layer-group mr-1.5"></i> 類別設定
+                </button>
+                <button onclick="switchTab('options')" id="tab-btn-options" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    <i class="fa-solid fa-sliders mr-1.5"></i> 冰糖加料
+                </button>
+                <button onclick="switchTab('pickup')" id="tab-btn-pickup" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    <i class="fa-solid fa-clock mr-1.5"></i> 取餐時間設定
+                </button>
+                <button onclick="switchTab('store')" id="tab-btn-store" class="px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    <i class="fa-solid fa-store mr-1.5"></i> 店家資訊
+                </button>
+            </div>
+        </div>
+
+        <!-- TAB 0: Orders Management -->
+        <section id="tab-content-orders" class="space-y-4 sm:space-y-6">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 class="text-base sm:text-xl font-bold text-slate-900">客戶訂單即時查詢</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">檢視顧客訂單明細與即時更新取餐狀態。</p>
+                </div>
+                <div class="relative w-full sm:w-72">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                    <input type="text" id="order-search-input" oninput="renderOrdersTable()" placeholder="搜尋姓名、電話或訂單編號..." class="pl-9 pr-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 w-full bg-slate-50/50">
+                </div>
+            </div>
+
+            <!-- Orders Status Filter Tabs -->
+            <div id="admin-order-filter-tabs" class="flex space-x-2 overflow-x-auto pb-1 no-scrollbar">
+                <button onclick="filterOrderTab('processing')" id="order-filter-processing" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-sky-600 text-white shadow-sm flex-shrink-0">
+                    處理中
+                </button>
+                <button onclick="filterOrderTab('completed')" id="order-filter-completed" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    已完成
+                </button>
+                <button onclick="filterOrderTab('deleted')" id="order-filter-deleted" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    已刪除
+                </button>
+                <button onclick="filterOrderTab('all')" id="order-filter-all" class="px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0">
+                    全部
+                </button>
+            </div>
+
+            <!-- Mobile Card View for Orders -->
+            <div id="admin-orders-mobile-list" class="grid grid-cols-1 gap-3 md:hidden">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Desktop Table View for Orders -->
+            <div class="hidden md:block bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                <th class="py-3.5 px-6">訂單編號</th>
+                                <th class="py-3.5 px-6">顧客資訊</th>
+                                <th class="py-3.5 px-6">取餐方式 / 時間</th>
+                                <th class="py-3.5 px-6">金額</th>
+                                <th class="py-3.5 px-6 text-center">訂單狀態 (點擊切換)</th>
+                                <th class="py-3.5 px-6">下單時間</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-orders-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 1: Menu Management -->
+        <section id="tab-content-menu" class="space-y-4 sm:space-y-6 hidden">
+            <!-- Header and Filters -->
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 class="text-base sm:text-xl font-bold text-slate-900">飲料菜單與價格管理</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">管理飲料品項、類別、規格與各杯型售價。</p>
+                </div>
+                <button onclick="openProductModal('add')" class="flex items-center justify-center space-x-2 px-4 py-3 sm:py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white transition font-bold text-sm shadow-md shadow-sky-500/20 w-full sm:w-auto">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>新增飲料品項</span>
+                </button>
+            </div>
+
+            <!-- Categories Filter Tabs -->
+            <div id="admin-category-tabs" class="flex space-x-2 overflow-x-auto pb-1 no-scrollbar">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Mobile Card View for Products -->
+            <div id="admin-product-mobile-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:hidden">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Desktop Products Table -->
+            <div class="hidden md:block bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                <th class="py-3.5 px-6 w-16">圖片</th>
+                                <th class="py-3.5 px-6">品項編號 / 品項名稱</th>
+                                <th class="py-3.5 px-6">類別</th>
+                                <th class="py-3.5 px-6">售價設定</th>
+                                <th class="py-3.5 px-6 text-center">販售狀態</th>
+                                <th class="py-3.5 px-6 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-product-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: Categories Management -->
+        <section id="tab-content-categories" class="space-y-4 sm:space-y-6 hidden">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 class="text-base sm:text-xl font-bold text-slate-900">飲料類別設定</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">管理菜單分類與杯型規格。</p>
+                </div>
+                <button onclick="openCategoryModal('add')" class="flex items-center justify-center space-x-2 px-4 py-3 sm:py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white transition font-bold text-sm shadow-md shadow-sky-500/20 w-full sm:w-auto">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>新增類別</span>
+                </button>
+            </div>
+
+            <!-- Mobile Card View for Categories -->
+            <div id="admin-category-mobile-list" class="grid grid-cols-1 gap-3 md:hidden">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Desktop Categories Table -->
+            <div class="hidden md:block bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                <th class="py-3.5 px-6 w-16">排序</th>
+                                <th class="py-3.5 px-6">類別編號</th>
+                                <th class="py-3.5 px-6">類別名稱</th>
+                                <th class="py-3.5 px-6">杯型類型</th>
+                                <th class="py-3.5 px-6 text-right">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-category-table-body" class="divide-y divide-slate-100 text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: Options & Toppings Management -->
+        <section id="tab-content-options" class="space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                <!-- Options Card/Table -->
+                <div class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-900">冰塊與甜度選項</h3>
+                            <p class="text-xs text-slate-500">設定甜度、溫度等客製化選項。</p>
+                        </div>
+                        <button onclick="openOptionModal('add')" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white text-xs sm:text-sm font-bold transition shadow-sm w-full xs:w-auto">
+                            <i class="fa-solid fa-plus mr-1"></i> 新增選項
+                        </button>
+                    </div>
+                    <!-- Mobile List -->
+                    <div id="admin-options-mobile-list" class="space-y-2.5 sm:hidden"></div>
+                    <!-- Desktop/Tablet Table -->
+                    <div class="hidden sm:block overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-500">
+                                    <th class="py-2.5 px-3 w-12">排序</th>
+                                    <th class="py-2.5 px-3">類型</th>
+                                    <th class="py-2.5 px-3">選項名稱</th>
+                                    <th class="py-2.5 px-3 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-options-table-body" class="divide-y divide-slate-100">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Toppings Card/Table -->
+                <div class="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex flex-col xs:flex-row xs:items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-900">加料選項與金額</h3>
+                            <p class="text-xs text-slate-500">管理加料項目、價格、狀態與拖拉排序。</p>
+                        </div>
+                        <button onclick="openToppingModal('add')" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white text-xs sm:text-sm font-bold transition shadow-sm w-full xs:w-auto">
+                            <i class="fa-solid fa-plus mr-1"></i> 新增加料
+                        </button>
+                    </div>
+                    <!-- Mobile List -->
+                    <div id="admin-toppings-mobile-list" class="space-y-2.5 sm:hidden"></div>
+                    <!-- Desktop/Tablet Table -->
+                    <div class="hidden sm:block overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-500">
+                                    <th class="py-2.5 px-3 w-12">排序</th>
+                                    <th class="py-2.5 px-3">加料編號</th>
+                                    <th class="py-2.5 px-3">名稱</th>
+                                    <th class="py-2.5 px-3">金額</th>
+                                    <th class="py-2.5 px-3 text-center">狀態</th>
+                                    <th class="py-2.5 px-3 text-right">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-toppings-table-body" class="divide-y divide-slate-100">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3.5: Pickup Time Settings Management -->
+        <section id="tab-content-pickup" class="space-y-4 sm:space-y-6 hidden">
+            <div class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm space-y-6 max-w-4xl mx-auto">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-base sm:text-xl font-bold text-slate-900">取餐時間規則設定</h2>
+                        <p class="text-xs sm:text-sm text-slate-500 mt-0.5">設定即時取餐準備時間、預定取餐間隔與營業前後緩衝時間。</p>
+                    </div>
+                    <span id="pickup-last-updated" class="text-xs font-mono text-slate-400 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 self-start sm:self-auto">
+                        尚未更新
+                    </span>
+                </div>
+
+                <input type="hidden" id="pickup-store-id" value="STORE-01">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <!-- InstantPrepMin -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700">即時取餐準備分鐘數</label>
+                        <select id="pickup-instant-prep-min" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                            <option value="10">10 分鐘</option>
+                            <option value="15" selected>15 分鐘</option>
+                            <option value="30">30 分鐘</option>
+                            <option value="60">60 分鐘</option>
+                        </select>
+                    </div>
+
+                    <!-- ReservePrepMin -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700">預定取餐時間間隔</label>
+                        <select id="pickup-reserve-prep-min" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                            <option value="15" selected>每隔 15 分鐘 (00, 15, 30, 45)</option>
+                            <option value="30">每隔 30 分鐘 (00, 30)</option>
+                            <option value="60">每隔 60 分鐘 (整點 00)</option>
+                        </select>
+                    </div>
+
+                    <!-- ReserveMaxDays -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700">預定取餐可預約天數</label>
+                        <select id="pickup-reserve-max-days" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                            <option value="3">3 天</option>
+                            <option value="5">5 天</option>
+                            <option value="7" selected>7 天</option>
+                        </select>
+                    </div>
+
+                    <!-- OpenAndCloseMin -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700">開店後 / 打烊前緩衝時間</label>
+                        <select id="pickup-open-close-min" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                            <option value="15">15 分鐘</option>
+                            <option value="30" selected>30 分鐘</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-slate-100">
+                    <button onclick="savePickupTimeSettings()" class="flex items-center justify-center space-x-2 px-6 py-3.5 sm:py-3 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold text-sm shadow-md transition w-full sm:w-auto">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>儲存取餐時間設定</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: Store Info Management -->
+        <section id="tab-content-store" class="space-y-4 sm:space-y-6 hidden">
+            <div class="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm space-y-5 max-w-4xl mx-auto">
+                <div class="border-b border-slate-100 pb-4">
+                    <h2 class="text-base sm:text-xl font-bold text-slate-900">店家基本資訊與品牌介紹設定</h2>
+                    <p class="text-xs sm:text-sm text-slate-500 mt-0.5">修改商店名稱、聯絡電話、營業時間與簡介說明。</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">商店名稱</label>
+                        <input type="text" id="store-edit-name" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">商店代碼</label>
+                        <input type="text" id="store-edit-code" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">聯絡電話</label>
+                        <input type="tel" id="store-edit-phone" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-700 uppercase">營業時間</label>
+                        <input type="text" id="store-edit-time" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">店家地址</label>
+                    <input type="text" id="store-edit-address" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">Logo 圖片網址</label>
+                    <input type="url" id="store-edit-logo" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="block text-xs font-bold text-slate-700 uppercase">店家簡介 / 描述</label>
+                    <textarea id="store-edit-desc" rows="3" class="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-slate-50/50"></textarea>
+                </div>
+
+                <div class="flex justify-end pt-4 border-t border-slate-100">
+                    <button onclick="saveStoreInfoLocally()" class="flex items-center justify-center space-x-2 px-6 py-3.5 sm:py-3 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold text-sm shadow-md transition w-full sm:w-auto">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>儲存店家資訊變更</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modals & Toasts -->
+    <!-- Product Edit/Add Modal -->
+    <div id="product-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 id="product-modal-title" class="text-base sm:text-lg font-bold text-sky-900">新增飲料品項</h3>
+                <button onclick="closeProductModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <input type="hidden" id="edit-product-id">
+            <div class="space-y-4 text-xs sm:text-sm">
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">飲品名稱 *</label>
+                    <input type="text" id="input-prod-name" oninput="autoSaveProductOnEdit()" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="block font-bold text-slate-700">所屬類別</label>
+                        <select id="input-prod-category" onchange="renderProductModalSizeInputs(); autoSaveProductOnEdit();" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-white">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block font-bold text-slate-700">販售狀態</label>
+                        <select id="input-prod-status" onchange="autoSaveProductOnEdit()" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-white">
+                            <option value="1">販售中</option>
+                            <option value="0">暫停中</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="block font-bold text-slate-700">杯型售價設定</label>
+                    <div id="product-modal-sizes-container" class="grid grid-cols-2 gap-3">
+                        <!-- Dynamic cup size price inputs populated by JS -->
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">圖片網址 (Image)</label>
+                    <input type="text" id="input-prod-image" oninput="autoSaveProductOnEdit()" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600">
+                </div>
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">商品描述 (Description)</label>
+                    <textarea id="input-prod-desc" rows="2" oninput="autoSaveProductOnEdit()" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600"></textarea>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+                <button onclick="closeProductModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition text-xs sm:text-sm">取消</button>
+                <button onclick="saveProductData()" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold transition text-xs sm:text-sm shadow-md">儲存確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 id="category-modal-title" class="text-base sm:text-lg font-bold text-sky-900">新增飲料類別</h3>
+                <button onclick="closeCategoryModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <input type="hidden" id="edit-category-id">
+            <div class="space-y-4 text-xs sm:text-sm">
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">類別名稱 *</label>
+                    <input type="text" id="input-cat-name" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600">
+                </div>
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">杯型類型 (SizeType)</label>
+                    <select id="input-cat-sizetype" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-white disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed">
+                        <!-- Populated by JS -->
+                    </select>
+                    <p id="cat-sizetype-lock-hint" class="hidden text-[11px] text-amber-600 font-medium mt-1">
+                        <i class="fa-solid fa-lock mr-1"></i>此類別下已有飲料品項，無法修改杯型類型。
+                    </p>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+                <button onclick="closeCategoryModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition text-xs sm:text-sm">取消</button>
+                <button onclick="saveCategoryData()" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold transition text-xs sm:text-sm shadow-md">儲存確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Option Modal -->
+    <div id="option-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 id="option-modal-title" class="text-base sm:text-lg font-bold text-sky-900">新增選項</h3>
+                <button onclick="closeOptionModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <input type="hidden" id="edit-option-idx">
+            <div class="space-y-4 text-xs sm:text-sm">
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">選項類型 (Type)</label>
+                    <select id="input-opt-type" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-white">
+                        <option value="溫度">溫度 (Ice)</option>
+                        <option value="甜度">甜度 (Sugar)</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">選項名稱 *</label>
+                    <input type="text" id="input-opt-name" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600" placeholder="例如：少冰、微糖">
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+                <button onclick="closeOptionModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition text-xs sm:text-sm">取消</button>
+                <button onclick="saveOptionData()" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold transition text-xs sm:text-sm shadow-md">儲存確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Topping Modal -->
+    <div id="topping-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-5 sm:p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 id="topping-modal-title" class="text-base sm:text-lg font-bold text-sky-900">新增加料設定</h3>
+                <button onclick="closeToppingModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <input type="hidden" id="edit-topping-idx">
+            <div class="space-y-4 text-xs sm:text-sm">
+                <div class="space-y-1">
+                    <label class="block font-bold text-slate-700">加料名稱 *</label>
+                    <input type="text" id="input-top-name" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600" placeholder="例如：珍珠、椰果">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="block font-bold text-slate-700">加價金額 *</label>
+                        <input type="number" id="input-top-price" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600" placeholder="10">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="block font-bold text-slate-700">販售狀態</label>
+                        <select id="input-top-status" class="w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-white">
+                            <option value="1">販售中</option>
+                            <option value="0">暫停中</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+                <button onclick="closeToppingModal()" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition text-xs sm:text-sm">取消</button>
+                <button onclick="saveToppingData()" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold transition text-xs sm:text-sm shadow-md">儲存確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Items Modal -->
+    <div id="order-items-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-white rounded-2xl sm:rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl p-4 sm:p-6 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-shrink-0">
+                <h3 class="text-lg sm:text-xl font-bold text-sky-900">訂單詳細品項</h3>
+                <button onclick="closeOrderItemsModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="order-items-modal-content" class="overflow-y-auto pr-1 flex-grow space-y-3 text-xs sm:text-sm">
+                <!-- Populated dynamically -->
+            </div>
+            <div class="pt-3 border-t border-slate-100 flex justify-end flex-shrink-0">
+                <button onclick="closeOrderItemsModal()" class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white transition text-xs sm:text-sm font-bold shadow-md">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl">
+            <div id="alert-icon-wrap" class="w-12 h-12 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center mx-auto text-xl">
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <h3 id="custom-alert-title" class="text-lg font-bold text-slate-900">系統提示</h3>
+            <p id="custom-alert-message" class="text-sm text-slate-600"></p>
+            <button onclick="closeCustomAlert()" class="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl transition shadow">確定</button>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-sm">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-sky-400 text-lg"></i>
+            <span id="toast-message">操作成功</span>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        const sheetId = "2PACX-1vQp32JDKwTfOaBZljyzuvZtflYBgced2x7QHHF6tyFQcHyS5V88mmWhl2id-wnLVYdLc2YDNW3co8ll";
+        const sheetGids = {
+            Stores: "253494346",
+            ProductCategories: "1849963648",
+            Products: "1595219352",
+            CupSizes: "1455445077",
+            ProductPrices: "2142249115",
+            Options: "2025782984",
+            Toppings: "1935014979",
+            StoreSettings: "2007995969",
+            Orders: "492745554",
+            OrderItems: "1989465507"
+        };
+
+        let db = {
+            store: {},
+            categories: [],
+            products: [],
+            cupSizes: [],
+            productPrices: [],
+            options: [],
+            toppings: [],
+            storeSettings: {},
+            orders: [],
+            orderItems: []
+        };
+
+        let currentAdminCategory = 'all';
+        let currentOrderFilter = 'processing';
+        let webAppUrl = "https://script.google.com/macros/s/AKfycbwN3xHJknCQNQ360Ek2S8gob3jto5UzAY9AieA2wRxjuw5dsZLhX_nXYPCFpivgOA86Kw/exec";
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadSpreadsheetData();
+        });
+
+        function switchTab(tabName) {
+            const tabs = ['orders', 'menu', 'categories', 'options', 'pickup', 'store'];
+            tabs.forEach(t => {
+                const content = document.getElementById(`tab-content-${t}`);
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (content && btn) {
+                    if (t === tabName) {
+                        content.classList.remove('hidden');
+                        btn.className = 'px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-sky-600 text-white shadow flex-shrink-0';
+                    } else {
+                        content.classList.add('hidden');
+                        btn.className = 'px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0';
+                    }
+                }
+            });
+            if (tabName === 'options') {
+                renderOptionsTable();
+                renderToppingsTable();
+            } else if (tabName === 'pickup') {
+                renderPickupTimeSettings();
+            } else if (tabName === 'orders') {
+                renderOrdersTable();
+            }
+        }
+
+        function getCurrentDateTimeString() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            const ss = String(now.getSeconds()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+        }
+
+        function showAlertModal(message, type = 'success') {
+            const modal = document.getElementById('custom-alert-modal');
+            const titleEl = document.getElementById('custom-alert-title');
+            const msgEl = document.getElementById('custom-alert-message');
+            const iconWrap = document.getElementById('alert-icon-wrap');
+
+            msgEl.innerText = message;
+            if (type === 'error') {
+                titleEl.innerText = '操作提示';
+                iconWrap.className = 'w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto text-xl';
+                iconWrap.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+            } else {
+                titleEl.innerText = '系統提示';
+                iconWrap.className = 'w-12 h-12 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center mx-auto text-xl';
+                iconWrap.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeCustomAlert() {
+            document.getElementById('custom-alert-modal').classList.add('hidden');
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = message;
+            if (type === 'error') {
+                toastIcon.className = 'fa-solid fa-circle-exclamation text-red-400 text-lg';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-check text-sky-400 text-lg';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        async function loadSheet(name) {
+            const gid = sheetGids[name];
+            const csvUrl = `https://docs.google.com/spreadsheets/d/e/${sheetId}/pub?output=csv${gid !== undefined ? '&gid=' + gid : ''}`;
+            
+            return new Promise((resolve) => {
+                Papa.parse(csvUrl, {
+                    download: true,
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const rows = results.data || [];
+                        const normalizedRows = rows.map(row => {
+                            const newRow = {};
+                            const rawValues = [];
+                            for (let key in row) {
+                                if (key !== undefined && key !== null) {
+                                    const cleanKey = String(key).trim().replace(/^\uFEFF/, '');
+                                    newRow[cleanKey] = row[key];
+                                    newRow[cleanKey.toLowerCase()] = row[key];
+                                    if (row[key] !== undefined) rawValues.push(String(row[key]).trim());
+                                }
+                            }
+                            newRow._rawValues = rawValues;
+                            return newRow;
+                        });
+
+                        if (name === 'Stores') {
+                            db.store = normalizedRows.length > 0 ? normalizedRows[0] : {};
+                        } else if (name === 'ProductCategories') {
+                            db.categories = normalizedRows;
+                        } else if (name === 'Products') {
+                            db.products = normalizedRows;
+                        } else if (name === 'CupSizes') {
+                            db.cupSizes = normalizedRows;
+                        } else if (name === 'ProductPrices') {
+                            db.productPrices = normalizedRows;
+                        } else if (name === 'Options') {
+                            db.options = normalizedRows;
+                        } else if (name === 'Toppings') {
+                            db.toppings = normalizedRows;
+                        } else if (name === 'StoreSettings') {
+                            db.storeSettings = normalizedRows.length > 0 ? normalizedRows[0] : {};
+                        } else if (name === 'Orders') {
+                            db.orders = normalizedRows;
+                        } else if (name === 'OrderItems') {
+                            db.orderItems = normalizedRows;
+                        }
+                        resolve();
+                    },
+                    error: function(err) {
+                        console.warn(`Error loading sheet ${name}:`, err);
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        async function loadSpreadsheetData() {
+            showToast("正在從 Google 試算表載入資料...", "success");
+            await Promise.all([
+                loadSheet('Stores'),
+                loadSheet('ProductCategories'),
+                loadSheet('Products'),
+                loadSheet('CupSizes'),
+                loadSheet('ProductPrices'),
+                loadSheet('Options'),
+                loadSheet('Toppings'),
+                loadSheet('StoreSettings'),
+                loadSheet('Orders'),
+                loadSheet('OrderItems')
+            ]);
+            initAdminUI();
+            showToast("後台資料同步完成！");
+        }
+
+        function initAdminUI() {
+            const store = db.store || {};
+            const rawVals = store._rawValues || [];
+            const storeName = store.StoreName || store.storename || rawVals[2] || '森植茶舖';
+            const storeCode = store.StoreCode || store.storecode || rawVals[1] || 'forest';
+            const storePhone = store.Phone || store.phone || rawVals[4] || '';
+            const storeAddress = store.Address || store.address || rawVals[5] || '';
+            const storeTime = store.Time || store.time || rawVals[6] || '';
+            const storeDesc = store.Description || store.description || rawVals[7] || '';
+            const storeLogo = store.Logo || store.logo || rawVals[3] || '';
+
+            document.getElementById('page-title').innerText = `${storeName} - 後台管理`;
+            document.getElementById('admin-subtitle').innerText = storeName;
+
+            const logoImg = document.getElementById('header-logo-img');
+            const logoIcon = document.getElementById('header-logo-icon');
+            if (storeLogo && storeLogo.trim() !== '') {
+                logoImg.src = storeLogo.trim();
+                logoImg.classList.remove('hidden');
+                logoIcon.classList.add('hidden');
+            } else {
+                logoImg.classList.add('hidden');
+                logoIcon.classList.remove('hidden');
+            }
+
+            document.getElementById('store-edit-name').value = storeName;
+            document.getElementById('store-edit-code').value = storeCode;
+            document.getElementById('store-edit-phone').value = storePhone;
+            document.getElementById('store-edit-time').value = storeTime;
+            document.getElementById('store-edit-address').value = storeAddress;
+            document.getElementById('store-edit-logo').value = storeLogo;
+            document.getElementById('store-edit-desc').value = storeDesc;
+
+            renderPickupTimeSettings();
+            renderOrdersTable();
+            renderAdminCategories();
+            renderAdminCategoryTable();
+            populateSizeTypeSelect();
+            renderAdminProducts(currentAdminCategory);
+            populateCategorySelect();
+        }
+
+        function toggleInlineOrderDetails(orderId) {
+            const desktopRow = document.getElementById(`desktop-detail-row-${orderId}`);
+            const desktopContent = document.getElementById(`desktop-detail-content-${orderId}`);
+            const desktopChevron = document.getElementById(`desktop-chevron-${orderId}`);
+
+            const mobileBox = document.getElementById(`mobile-detail-box-${orderId}`);
+            const mobileContent = document.getElementById(`mobile-detail-content-${orderId}`);
+            const mobileChevron = document.getElementById(`mobile-chevron-${orderId}`);
+
+            const isHidden = desktopRow ? desktopRow.classList.contains('hidden') : (mobileBox ? mobileBox.classList.contains('hidden') : true);
+
+            if (isHidden) {
+                const itemsHtml = buildOrderItemsDetailHtml(orderId);
+                if (desktopContent) desktopContent.innerHTML = itemsHtml;
+                if (mobileContent) mobileContent.innerHTML = itemsHtml;
+
+                if (desktopRow) desktopRow.classList.remove('hidden');
+                if (mobileBox) mobileBox.classList.remove('hidden');
+                if (desktopChevron) desktopChevron.classList.add('rotate-90');
+                if (mobileChevron) mobileChevron.classList.add('rotate-90');
+            } else {
+                if (desktopRow) desktopRow.classList.add('hidden');
+                if (mobileBox) mobileBox.classList.add('hidden');
+                if (desktopChevron) desktopChevron.classList.remove('rotate-90');
+                if (mobileChevron) mobileChevron.classList.remove('rotate-90');
+            }
+        }
+
+        function buildOrderItemsDetailHtml(orderId) {
+            const items = (db.orderItems || []).filter(item => {
+                const raw = item._rawValues || [];
+                const itemOrderId = item.OrderID || item.orderid || raw[1] || '';
+                return String(itemOrderId).trim() === String(orderId).trim();
+            });
+
+            if (items.length === 0) {
+                return `<div class="text-xs text-slate-400 py-2 text-center">查無此訂單品項明細</div>`;
+            }
+
+            return items.map(item => {
+                const raw = item._rawValues || [];
+                const prodName = item.ProductName || item.productname || raw[3] || '飲品';
+                const optName = item.OptionName || item.optionname || raw[5] || '';
+                const topId = item.ToppingID || item.toppingid || raw[6] || '';
+                const topName = item.ToppingName || item.toppingname || raw[7] || '';
+                const qty = item.Quantity || item.quantity || raw[8] || 1;
+                const unitPrice = item.ProductPrice || item.productprice || raw[9] || 0;
+                const subtotal = item.Subtotal || item.subtotal || raw[10] || (Number(unitPrice) * Number(qty));
+
+                let optionDisplay = optName ? String(optName).trim() : '';
+                let toppingDisplay = '';
+
+                if (topName && topName !== '無' && topName !== 'null') {
+                    const topNamesArr = String(topName).split(/[,、/]/).map(s => s.trim()).filter(Boolean);
+                    const topIdsArr = String(topId).split(/[,、/]/).map(s => s.trim()).filter(Boolean);
+                    const formattedTops = topNamesArr.map((tName, idx) => {
+                        const matchedTop = (db.toppings || []).find(t => {
+                            const tRaw = t._rawValues || [];
+                            const idMatch = topIdsArr[idx] && String(t.ToppingID || t.toppingid || tRaw[0]).trim() === topIdsArr[idx];
+                            const nameMatch = String(t.ToppingName || t.toppingname || tRaw[1]).trim() === tName;
+                            return idMatch || nameMatch;
+                        });
+                        const tPrice = matchedTop ? (matchedTop.Price || matchedTop.price || (matchedTop._rawValues || [])[2] || 0) : null;
+                        return tPrice !== null ? `${tName}(+${tPrice})` : `${tName}`;
+                    });
+                    toppingDisplay = formattedTops.join(',');
+                }
+
+                let customInfoText = '';
+                if (optionDisplay && toppingDisplay) {
+                    customInfoText = `${optionDisplay} / ${toppingDisplay}`;
+                } else if (optionDisplay) {
+                    customInfoText = optionDisplay;
+                } else if (toppingDisplay) {
+                    customInfoText = toppingDisplay;
+                }
+
+                return `
+                    <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-bold text-slate-800">${prodName} <span class="text-sky-700 font-mono">x${qty}</span></div>
+                            ${customInfoText ? `<div class="text-slate-500 mt-0.5">${customInfoText}</div>` : ''}
+                        </div>
+                        <div class="text-right font-mono font-bold text-slate-900 flex-shrink-0">
+                            $${subtotal}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderAdminCategories() {
+            const container = document.getElementById('admin-category-tabs');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const allBtn = document.createElement('button');
+            allBtn.id = 'admin-cat-all';
+            allBtn.onclick = () => filterAdminCategory('all');
+            allBtn.className = currentAdminCategory === 'all'
+                ? 'px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs whitespace-nowrap transition bg-sky-600 text-white shadow-sm'
+                : 'px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs whitespace-nowrap transition bg-white text-slate-700 border border-slate-200 hover:bg-slate-50';
+            allBtn.innerText = '全部品項';
+            container.appendChild(allBtn);
+
+            const sortedCats = [...(db.categories || [])].sort((a, b) => {
+                const sa = Number(a.SortOrder || a.sortorder || (a._rawValues || [])[2] || 9999);
+                const sb = Number(b.SortOrder || b.sortorder || (b._rawValues || [])[2] || 9999);
+                return sa - sb;
+            });
+
+            sortedCats.forEach(cat => {
+                const raw = cat._rawValues || [];
+                const isActive = cat.IsActive !== undefined ? cat.IsActive : (cat.isactive !== undefined ? cat.isactive : (raw[6] !== undefined ? raw[6] : '1'));
+                if (String(isActive).trim() === '0') return;
+                const catId = cat.CategoryID || cat.categoryid || raw[0];
+                const catName = cat.CategoryName || cat.categoryname || raw[1] || catId;
+                if (!catId) return;
+
+                const btn = document.createElement('button');
+                btn.id = `admin-cat-${catId}`;
+                btn.onclick = () => filterAdminCategory(catId);
+                btn.className = String(currentAdminCategory) === String(catId)
+                    ? 'px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs whitespace-nowrap transition bg-sky-600 text-white shadow-sm'
+                    : 'px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs whitespace-nowrap transition bg-white text-slate-700 border border-slate-200 hover:bg-slate-50';
+                btn.innerText = catName;
+                container.appendChild(btn);
+            });
+        }
+
+        let categoryDesktopSortable = null;
+        let categoryMobileSortable = null;
+        let optionsDesktopSortable = null;
+        let optionsMobileSortable = null;
+        let toppingsDesktopSortable = null;
+        let toppingsMobileSortable = null;
+
+        function renderAdminCategoryTable() {
+            const tbody = document.getElementById('admin-category-table-body');
+            const mobileList = document.getElementById('admin-category-mobile-list');
+            if (!tbody || !mobileList) return;
+            tbody.innerHTML = '';
+            mobileList.innerHTML = '';
+
+            const activeCats = (db.categories || [])
+                .filter(cat => {
+                    const raw = cat._rawValues || [];
+                    const isActive = cat.IsActive !== undefined ? cat.IsActive : (cat.isactive !== undefined ? cat.isactive : (raw[6] !== undefined ? raw[6] : '1'));
+                    return String(isActive).trim() !== '0';
+                })
+                .sort((a, b) => {
+                    const sa = Number(a.SortOrder || a.sortorder || (a._rawValues || [])[2] || 9999);
+                    const sb = Number(b.SortOrder || b.sortorder || (b._rawValues || [])[2] || 9999);
+                    return sa - sb;
+                });
+
+            if (activeCats.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">目前尚無飲料類別</td></tr>`;
+                mobileList.innerHTML = `<div class="bg-white rounded-2xl p-6 text-center text-slate-400 border border-slate-200 text-sm">目前尚無飲料類別</div>`;
+                return;
+            }
+
+            activeCats.forEach((cat, idx) => {
+                const raw = cat._rawValues || [];
+                const catId = cat.CategoryID || cat.categoryid || raw[0] || '';
+                const catName = cat.CategoryName || cat.categoryname || raw[1] || '';
+                const sizeType = cat.SizeType || cat.sizetype || raw[3] || '';
+
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-cat-id', catId);
+                tr.className = 'hover:bg-slate-50 border-b border-slate-100 bg-white transition';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-6">
+                        <div class="cat-drag-handle inline-flex items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 select-none" title="按住上下拖拉調整排序">
+                            <i class="fa-solid fa-grip-vertical text-sm"></i>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-6 font-mono text-xs text-slate-500">${catId}</td>
+                    <td class="py-3.5 px-6 font-bold text-slate-900">${catName}</td>
+                    <td class="py-3.5 px-6 font-mono text-sky-700">${sizeType}</td>
+                    <td class="py-3.5 px-6 text-right space-x-2">
+                        <button onclick="openCategoryModal('edit', '${catId}')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 text-xs font-bold transition">修改</button>
+                        <button onclick="deleteCategory('${catId}')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-red-600 text-xs font-bold transition">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                const card = document.createElement('div');
+                card.setAttribute('data-cat-id', catId);
+                card.className = 'bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-center justify-between gap-2 transition';
+                card.innerHTML = `
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <div class="cat-drag-handle p-2 -ml-1 cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 flex items-center justify-center flex-shrink-0" title="按住上下拖拉調整排序">
+                            <i class="fa-solid fa-grip-vertical text-base"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-slate-900 text-base truncate">${catName}</div>
+                            <div class="text-xs font-mono text-slate-400 mt-0.5 truncate">${catId} · <span class="text-sky-700 font-bold">${sizeType}</span></div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1.5 flex-shrink-0">
+                        <button onclick="openCategoryModal('edit', '${catId}')" class="px-3 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">修改</button>
+                        <button onclick="deleteCategory('${catId}')" class="px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold">刪除</button>
+                    </div>
+                `;
+                mobileList.appendChild(card);
+            });
+
+            initCategoryDragAndDrop();
+        }
+
+        function initCategoryDragAndDrop() {
+            if (typeof Sortable === 'undefined') return;
+            const tbody = document.getElementById('admin-category-table-body');
+            const mobileList = document.getElementById('admin-category-mobile-list');
+
+            if (categoryDesktopSortable) {
+                categoryDesktopSortable.destroy();
+                categoryDesktopSortable = null;
+            }
+            if (categoryMobileSortable) {
+                categoryMobileSortable.destroy();
+                categoryMobileSortable = null;
+            }
+
+            if (tbody) {
+                categoryDesktopSortable = Sortable.create(tbody, {
+                    animation: 180,
+                    handle: '.cat-drag-handle',
+                    ghostClass: 'bg-sky-50',
+                    onEnd: function() {
+                        const orderedIds = Array.from(tbody.querySelectorAll('tr[data-cat-id]')).map(el => el.getAttribute('data-cat-id'));
+                        applyCategorySortOrder(orderedIds);
+                    }
+                });
+            }
+
+            if (mobileList) {
+                categoryMobileSortable = Sortable.create(mobileList, {
+                    animation: 180,
+                    handle: '.cat-drag-handle',
+                    ghostClass: 'bg-sky-50',
+                    onEnd: function() {
+                        const orderedIds = Array.from(mobileList.querySelectorAll('div[data-cat-id]')).map(el => el.getAttribute('data-cat-id'));
+                        applyCategorySortOrder(orderedIds);
+                    }
+                });
+            }
+        }
+
+        function applyCategorySortOrder(orderedCatIds) {
+            if (!orderedCatIds || orderedCatIds.length === 0) return;
+            const nowStr = getCurrentDateTimeString();
+
+            orderedCatIds.forEach((catId, index) => {
+                const newSort = index + 1;
+                const cat = (db.categories || []).find(c => String(c.CategoryID || c.categoryid || (c._rawValues || [])[0]).trim() === String(catId).trim());
+                if (cat) {
+                    if (!cat.CreateDate && cat._rawValues && cat._rawValues[7]) {
+                        cat.CreateDate = cat._rawValues[7];
+                    }
+                    cat.SortOrder = newSort;
+                    cat.sortorder = newSort;
+                    cat.UpdateDate = nowStr;
+                    cat.updatedate = nowStr;
+                    if (cat._rawValues) {
+                        cat._rawValues[2] = newSort;
+                        cat._rawValues[8] = nowStr;
+                    }
+                }
+            });
+
+            // Re-sort db.categories in memory so all views reflect the updated SortOrder
+            db.categories.sort((a, b) => {
+                const sa = Number(a.SortOrder || a.sortorder || (a._rawValues || [])[2] || 9999);
+                const sb = Number(b.SortOrder || b.sortorder || (b._rawValues || [])[2] || 9999);
+                return sa - sb;
+            });
+
+            renderAdminCategories();
+            renderAdminCategoryTable();
+            populateCategorySelect();
+            showToast("已更新類別排序並寫入 ProductCategories 試算表！");
+            syncCategoriesToSpreadsheet();
+        }
+
+        function deleteCategory(catId) {
+            const cat = (db.categories || []).find(c => String(c.CategoryID || c.categoryid || (c._rawValues || [])[0]) === String(catId));
+            if (!cat) return;
+            const nowStr = getCurrentDateTimeString();
+            if (!cat.CreateDate && cat._rawValues && cat._rawValues[7]) {
+                cat.CreateDate = cat._rawValues[7];
+            }
+            cat.IsActive = '0';
+            cat.UpdateDate = nowStr;
+            if (cat._rawValues) {
+                cat._rawValues[6] = '0';
+                cat._rawValues[8] = nowStr;
+            }
+            renderAdminCategories();
+            renderAdminCategoryTable();
+            populateCategorySelect();
+            showToast("類別已刪除");
+            syncCategoriesToSpreadsheet();
+        }
+
+        function populateSizeTypeSelect() {
+            const select = document.getElementById('input-cat-sizetype');
+            if (!select) return;
+            select.innerHTML = '';
+
+            const types = new Set();
+            (db.cupSizes || []).forEach(cs => {
+                const raw = cs._rawValues || [];
+                const st = String(cs.SizeType || cs.sizetype || raw[2] || '').trim();
+                if (st) types.add(st);
+            });
+            (db.categories || []).forEach(cat => {
+                const raw = cat._rawValues || [];
+                const st = String(cat.SizeType || cat.sizetype || raw[3] || '').trim();
+                if (st) types.add(st);
+            });
+
+            if (types.size === 0) {
+                ['ML', 'M', 'L', 'SINGLE'].forEach(t => types.add(t));
+            }
+
+            types.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.innerText = t;
+                select.appendChild(opt);
+            });
+        }
+
+        function categoryHasProducts(catId) {
+            if (!catId) return false;
+            return (db.products || []).some(prod => {
+                const raw = prod._rawValues || [];
+                const isActive = prod.IsActive !== undefined ? prod.IsActive : (prod.isactive !== undefined ? prod.isactive : (raw[7] !== undefined ? raw[7] : '1'));
+                if (String(isActive).trim() === '0') return false;
+                const prodCatId = String(prod.CategoryID || prod.categoryid || raw[1] || '').trim();
+                return prodCatId === String(catId).trim();
+            });
+        }
+
+        function openCategoryModal(mode, catId = null) {
+            populateSizeTypeSelect();
+            const modal = document.getElementById('category-modal');
+            const titleEl = document.getElementById('category-modal-title');
+            const sizeTypeSelect = document.getElementById('input-cat-sizetype');
+            const lockHint = document.getElementById('cat-sizetype-lock-hint');
+
+            document.getElementById('edit-category-id').value = '';
+            document.getElementById('input-cat-name').value = '';
+            sizeTypeSelect.disabled = false;
+            if (lockHint) lockHint.classList.add('hidden');
+
+            if (mode === 'edit' && catId) {
+                titleEl.innerText = '修改飲料類別';
+                const cat = (db.categories || []).find(c => String(c.CategoryID || c.categoryid || (c._rawValues || [])[0]).trim() === String(catId).trim());
+                if (cat) {
+                    const raw = cat._rawValues || [];
+                    document.getElementById('edit-category-id').value = catId;
+                    document.getElementById('input-cat-name').value = cat.CategoryName || cat.categoryname || raw[1] || '';
+                    const st = String(cat.SizeType || cat.sizetype || raw[3] || '').trim();
+                    if (st && !Array.from(sizeTypeSelect.options).some(o => o.value === st)) {
+                        const opt = document.createElement('option');
+                        opt.value = st;
+                        opt.innerText = st;
+                        sizeTypeSelect.appendChild(opt);
+                    }
+                    if (st) sizeTypeSelect.value = st;
+
+                    if (categoryHasProducts(catId)) {
+                        sizeTypeSelect.disabled = true;
+                        if (lockHint) lockHint.classList.remove('hidden');
+                    }
+                }
+            } else {
+                titleEl.innerText = '新增飲料類別';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeCategoryModal() {
+            document.getElementById('category-modal').classList.add('hidden');
+        }
+
+        function saveCategoryData() {
+            const catId = document.getElementById('edit-category-id').value;
+            const name = document.getElementById('input-cat-name').value.trim();
+            const sizeType = document.getElementById('input-cat-sizetype').value;
+            const nowStr = getCurrentDateTimeString();
+
+            if (!name) {
+                showAlertModal("請填寫類別名稱！", "error");
+                return;
+            }
+
+            if (catId) {
+                const cat = (db.categories || []).find(c => String(c.CategoryID || c.categoryid || (c._rawValues || [])[0]).trim() === String(catId).trim());
+                if (cat) {
+                    const raw = cat._rawValues || [];
+                    const existingSizeType = String(cat.SizeType || cat.sizetype || raw[3] || '').trim();
+                    const finalSizeType = categoryHasProducts(catId) ? existingSizeType : sizeType;
+
+                    if (!cat.CreateDate && raw[7]) {
+                        cat.CreateDate = raw[7];
+                    }
+                    cat.CategoryName = name;
+                    cat.categoryname = name;
+                    cat.SizeType = finalSizeType;
+                    cat.sizetype = finalSizeType;
+                    cat.UpdateDate = nowStr;
+                    cat.updatedate = nowStr;
+
+                    if (raw.length > 0) {
+                        raw[1] = name;
+                        raw[3] = finalSizeType;
+                        raw[8] = nowStr;
+                    }
+                }
+            } else {
+                const newId = 'CAT-' + Date.now();
+                const activeCount = (db.categories || []).filter(c => String(c.IsActive ?? c.isactive ?? (c._rawValues || [])[6] ?? '1').trim() !== '0').length;
+                const nextSort = activeCount + 1;
+                db.categories.push({
+                    CategoryID: newId,
+                    CategoryName: name,
+                    SortOrder: nextSort,
+                    SizeType: sizeType,
+                    HasOptions: '1',
+                    HasToppings: '1',
+                    IsActive: '1',
+                    CreateDate: nowStr,
+                    UpdateDate: '',
+                    _rawValues: [newId, name, nextSort, sizeType, '1', '1', '1', nowStr, '']
+                });
+            }
+
+            closeCategoryModal();
+            renderAdminCategories();
+            renderAdminCategoryTable();
+            populateCategorySelect();
+            showToast(catId ? `已更新類別：${name}` : `已新增類別：${name}`);
+            syncCategoriesToSpreadsheet();
+        }
+
+        async function syncCategoriesToSpreadsheet() {
+            if (!webAppUrl) return;
+            try {
+                await fetch(webAppUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'syncAll',
+                        categories: db.categories
+                    })
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function filterOrderTab(status) {
+            currentOrderFilter = status;
+            ['processing', 'completed', 'deleted', 'all'].forEach(s => {
+                const btn = document.getElementById(`order-filter-${s}`);
+                if (!btn) return;
+                if (s === status) {
+                    btn.className = 'px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-sky-600 text-white shadow-sm flex-shrink-0';
+                } else {
+                    btn.className = 'px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition whitespace-nowrap bg-white text-slate-700 hover:bg-slate-100 border border-slate-200 flex-shrink-0';
+                }
+            });
+            renderOrdersTable();
+        }
+
+        function renderOrdersTable() {
+            const tbody = document.getElementById('admin-orders-table-body');
+            const mobileList = document.getElementById('admin-orders-mobile-list');
+            if (!tbody || !mobileList) return;
+            tbody.innerHTML = '';
+            mobileList.innerHTML = '';
+
+            const keyword = (document.getElementById('order-search-input')?.value || '').toLowerCase().trim();
+
+            const orders = (db.orders || []).filter(ord => {
+                const raw = ord._rawValues || [];
+                const name = (ord.CustomerName || ord.customername || raw[2] || raw[1] || '').toLowerCase();
+                const phone = (ord.CustomerPhone || ord.customerphone || raw[3] || raw[2] || '').toLowerCase();
+                const orderId = (ord.OrderID || ord.orderid || raw[0] || '').toLowerCase();
+                const orderStatus = String(ord.OrderStatus || ord.orderstatus || raw[4] || raw[3] || '處理中').trim();
+
+                if (!name && !phone && !orderId) return false;
+
+                if (currentOrderFilter === 'processing' && orderStatus !== '處理中') return false;
+                if (currentOrderFilter === 'completed' && orderStatus !== '已完成') return false;
+                if (currentOrderFilter === 'deleted' && orderStatus !== '已刪除') return false;
+
+                if (keyword && !name.includes(keyword) && !phone.includes(keyword) && !orderId.includes(keyword)) {
+                    return false;
+                }
+                return true;
+            });
+
+            if (orders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-slate-400">目前尚無符合條件的訂單</td></tr>`;
+                mobileList.innerHTML = `<div class="bg-white rounded-2xl p-8 text-center text-slate-400 border border-slate-200 text-sm">目前尚無符合條件的訂單</div>`;
+                return;
+            }
+
+            [...orders].reverse().forEach(ord => {
+                const raw = ord._rawValues || [];
+                const orderId = ord.OrderID || ord.orderid || raw[0] || 'ORD-' + Math.floor(Math.random()*10000);
+                const custName = ord.CustomerName || ord.customername || raw[2] || raw[1] || '訪客';
+                let custPhone = String(ord.CustomerPhone || ord.customerphone || raw[3] || raw[2] || '').trim();
+                if (/^9\d{8}$/.test(custPhone)) custPhone = '0' + custPhone;
+                const orderStatus = ord.OrderStatus || ord.orderstatus || raw[4] || raw[3] || '處理中';
+                const pickupType = ord.PickupType || ord.pickuptype || raw[8] || '現場取餐';
+                const pickupTime = ord.PickupTime || ord.pickuptime || raw[7] || '';
+                const totalAmount = ord.TotalAmount || ord.totalamount || raw[10] || 0;
+                const createDate = ord.CreateDate || ord.createdate || raw[12] || '';
+
+                const isCompleted = orderStatus === '已完成';
+                const isDeleted = orderStatus === '已刪除';
+                const isLocked = isCompleted || isDeleted;
+                const nextStatus = '已完成';
+                
+                let statusColorClass = 'bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200';
+                let statusIcon = 'fa-clock';
+                if (isDeleted) {
+                    statusColorClass = 'bg-slate-200 text-slate-500 border-slate-300 cursor-not-allowed opacity-85';
+                    statusIcon = 'fa-ban';
+                } else if (isCompleted) {
+                    statusColorClass = 'bg-emerald-100 text-emerald-800 border-emerald-200 cursor-not-allowed opacity-90';
+                    statusIcon = 'fa-circle-check';
+                }
+
+                const statusActionHtml = isLocked
+                    ? `<span class="px-3.5 py-1.5 rounded-full text-xs font-bold border inline-flex items-center space-x-1.5 ${statusColorClass}" title="此訂單${orderStatus}，無法再調整狀態">
+                           <i class="fa-solid ${statusIcon}"></i>
+                           <span>${orderStatus}</span>
+                       </span>`
+                    : `<div class="inline-flex items-center space-x-1.5">
+                           <button type="button" onclick="event.stopPropagation(); updateOrderStatus('${orderId}', '${nextStatus}')" class="px-3.5 py-1.5 rounded-full text-xs font-bold border active:scale-95 transition inline-flex items-center space-x-1.5 shadow-sm ${statusColorClass}" title="點擊標記為已完成">
+                               <i class="fa-solid ${statusIcon}"></i>
+                               <span>${orderStatus}</span>
+                           </button>
+                           <button type="button" onclick="event.stopPropagation(); confirmDeleteOrder('${orderId}')" class="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600 border border-red-200 active:scale-95 transition inline-flex items-center justify-center" title="設為已刪除">
+                               <i class="fa-solid fa-trash-can text-xs"></i>
+                           </button>
+                       </div>`;
+
+                // Desktop Row
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-sky-50/60 transition border-b border-slate-100 cursor-pointer';
+                tr.onclick = (e) => {
+                    if (e.target.closest('button')) return;
+                    toggleInlineOrderDetails(orderId);
+                };
+                tr.innerHTML = `
+                    <td class="py-3.5 px-6 font-mono text-xs text-sky-700 font-bold">
+                        <div class="flex items-center space-x-2">
+                            <i id="desktop-chevron-${orderId}" class="fa-solid fa-chevron-right text-[10px] text-slate-400 transition-transform duration-200"></i>
+                            <span>${orderId}</span>
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-6">
+                        <div class="font-bold text-slate-900">${custName}</div>
+                        <div class="text-xs text-slate-400">${custPhone}</div>
+                    </td>
+                    <td class="py-3.5 px-6">
+                        <div class="text-slate-700 font-medium">${pickupType}</div>
+                        ${pickupTime ? `<div class="text-xs font-mono text-sky-600 mt-0.5"><i class="fa-regular fa-clock mr-1"></i>預計取餐: ${pickupTime}</div>` : ''}
+                    </td>
+                    <td class="py-3.5 px-6 font-mono font-bold text-slate-900">$${totalAmount}</td>
+                    <td class="py-3.5 px-6 text-center">
+                        ${statusActionHtml}
+                    </td>
+                    <td class="py-3.5 px-6 font-mono text-slate-500 text-xs">${createDate}</td>
+                `;
+                tbody.appendChild(tr);
+
+                // Desktop Inline Detail Row
+                const detailTr = document.createElement('tr');
+                detailTr.id = `desktop-detail-row-${orderId}`;
+                detailTr.className = 'hidden bg-slate-50/90 border-b border-slate-200';
+                detailTr.innerHTML = `
+                    <td colspan="6" class="p-4 sm:px-8">
+                        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-inner space-y-2.5">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <span class="text-xs font-bold text-sky-800"><i class="fa-solid fa-receipt mr-1.5"></i>訂單明細 (${orderId})</span>
+                                <span class="text-xs text-slate-400">點擊訂單列可收合</span>
+                            </div>
+                            <div id="desktop-detail-content-${orderId}" class="space-y-2"></div>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(detailTr);
+
+                const mobileStatusActionHtml = isLocked
+                    ? `<span class="px-4 py-2 rounded-full text-xs font-bold border inline-flex items-center space-x-1.5 ${statusColorClass}">
+                           <i class="fa-solid ${statusIcon}"></i>
+                           <span>${orderStatus}</span>
+                       </span>`
+                    : `<div class="inline-flex items-center space-x-2">
+                           <button type="button" onclick="event.stopPropagation(); updateOrderStatus('${orderId}', '${nextStatus}')" class="px-4 py-2 rounded-full text-xs font-bold border active:scale-95 transition inline-flex items-center space-x-1.5 shadow-sm ${statusColorClass}">
+                               <i class="fa-solid ${statusIcon}"></i>
+                               <span>${orderStatus}</span>
+                           </button>
+                           <button type="button" onclick="event.stopPropagation(); confirmDeleteOrder('${orderId}')" class="w-8 h-8 rounded-full bg-red-50 active:bg-red-100 text-red-500 border border-red-200 active:scale-95 transition inline-flex items-center justify-center" title="設為已刪除">
+                               <i class="fa-solid fa-trash-can text-xs"></i>
+                           </button>
+                       </div>`;
+
+                // Mobile Card
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3 cursor-pointer active:border-sky-300 transition';
+                card.onclick = (e) => {
+                    if (e.target.closest('button')) return;
+                    toggleInlineOrderDetails(orderId);
+                };
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
+                        <div>
+                            <div class="flex items-center space-x-1.5">
+                                <i id="mobile-chevron-${orderId}" class="fa-solid fa-chevron-right text-[10px] text-sky-600 transition-transform duration-200"></i>
+                                <span class="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md">${orderId}</span>
+                            </div>
+                            <div class="font-bold text-slate-900 text-base mt-1">${custName} <span class="text-xs font-normal text-slate-500">${custPhone}</span></div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-mono font-bold text-lg text-slate-900">$${totalAmount}</div>
+                            <div class="text-[11px] text-slate-600 font-medium">${pickupType}</div>
+                            ${pickupTime ? `<div class="text-[11px] font-mono text-sky-600">預計: ${pickupTime}</div>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between gap-2 pt-0.5">
+                        <span class="font-mono text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i>${createDate || '無時間'}</span>
+                        ${mobileStatusActionHtml}
+                    </div>
+                    <div id="mobile-detail-box-${orderId}" class="hidden pt-2.5 border-t border-slate-100 space-y-2">
+                        <div id="mobile-detail-content-${orderId}" class="space-y-2"></div>
+                    </div>
+                `;
+                mobileList.appendChild(card);
+            });
+        }
+
+        function confirmDeleteOrder(orderId) {
+            const ord = (db.orders || []).find(o => String(o.OrderID || o.orderid || (o._rawValues || [])[0]).trim() === String(orderId).trim());
+            if (!ord) return;
+            const currentStatus = ord.OrderStatus || ord.orderstatus || (ord._rawValues || [])[4] || '';
+            if (currentStatus === '已完成' || currentStatus === '已刪除') {
+                showAlertModal(`此訂單${currentStatus}，無法再調整狀態！`, "error");
+                return;
+            }
+            updateOrderStatus(orderId, '已刪除');
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const ord = (db.orders || []).find(o => String(o.OrderID || o.orderid || (o._rawValues || [])[0]).trim() === String(orderId).trim());
+            if (!ord) return;
+
+            const raw = ord._rawValues || [];
+            const currentStatus = ord.OrderStatus || ord.orderstatus || raw[4] || '';
+            if (currentStatus === '已完成' || currentStatus === '已刪除') {
+                showAlertModal(`此訂單${currentStatus}，無法再調整狀態！`, "error");
+                return;
+            }
+
+            const nowStr = getCurrentDateTimeString();
+
+            if (!ord.CreateDate && raw[12]) {
+                ord.CreateDate = raw[12];
+            }
+
+            let rawPhone = String(ord.CustomerPhone || ord.customerphone || raw[3] || '').trim();
+            if (/^9\d{8}$/.test(rawPhone)) rawPhone = '0' + rawPhone;
+            ord.CustomerPhone = rawPhone;
+            ord.customerphone = rawPhone;
+
+            ord.OrderStatus = newStatus;
+            ord.orderstatus = newStatus;
+            ord.UpdateDate = nowStr;
+            ord.updatedate = nowStr;
+
+            if (raw.length > 0) {
+                raw[3] = rawPhone;
+                raw[4] = newStatus;
+                raw[13] = nowStr;
+            }
+
+            renderOrdersTable();
+            showToast(newStatus === '已刪除' ? `訂單 ${orderId} 已標記為「已刪除」並鎖定` : `訂單 ${orderId} 狀態已設為「${newStatus}」並鎖定`);
+            syncOrdersToSpreadsheet();
+        }
+
+        async function syncOrdersToSpreadsheet() {
+            if (!webAppUrl) return;
+            try {
+                await fetch(webAppUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'syncAll',
+                        orders: db.orders
+                    })
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function filterAdminCategory(catId) {
+            currentAdminCategory = catId;
+            document.querySelectorAll('#admin-category-tabs button').forEach(btn => {
+                btn.className = 'px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs whitespace-nowrap transition bg-white text-slate-700 border border-slate-200 hover:bg-slate-50';
+            });
+            const activeBtn = document.getElementById(`admin-cat-${catId}`);
+            if (activeBtn) {
+                activeBtn.className = 'px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl font-medium text-xs whitespace-nowrap transition bg-sky-600 text-white shadow-sm';
+            }
+            renderAdminProducts(catId);
+        }
+
+        function renderAdminProducts(catId) {
+            const tbody = document.getElementById('admin-product-table-body');
+            const mobileList = document.getElementById('admin-product-mobile-list');
+            tbody.innerHTML = '';
+            mobileList.innerHTML = '';
+
+            const activeProducts = (db.products || []).filter(prod => {
+                const raw = prod._rawValues || [];
+                const isActive = prod.IsActive !== undefined ? prod.IsActive : (prod.isactive !== undefined ? prod.isactive : (raw[7] !== undefined ? raw[7] : '1'));
+                if (String(isActive).trim() === '0') return false;
+                if (catId === 'all') return true;
+                const prodCat = prod.CategoryID || prod.categoryid || raw[1] || '';
+                return String(prodCat).trim() === String(catId).trim();
+            });
+
+            if (activeProducts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-slate-400">目前尚無飲料品項</td></tr>`;
+                mobileList.innerHTML = `<div class="col-span-full bg-white rounded-2xl p-8 text-center text-slate-400 border border-slate-200 text-sm">目前尚無飲料品項</div>`;
+                return;
+            }
+
+            activeProducts.forEach(prod => {
+                const raw = prod._rawValues || [];
+                const prodId = prod.ProductID || prod.productid || raw[0] || '';
+                const prodName = prod.ProductName || prod.productname || raw[2] || '';
+                const prodCatId = prod.CategoryID || prod.categoryid || raw[1] || '';
+                const prodImage = prod.Image || prod.image || raw[3] || '';
+                const isAvailable = getProductIsAvailable(prod);
+
+                const catObj = (db.categories || []).find(c => String(c.CategoryID || c.categoryid || (c._rawValues || [])[0]) === String(prodCatId));
+                const catName = catObj ? (catObj.CategoryName || catObj.categoryname || (catObj._rawValues || [])[1] || prodCatId) : prodCatId;
+
+                // Match ProductPrices where ProductPrices.ProductID = Products.ProductID
+                const prices = (db.productPrices || []).filter(p => {
+                    const pRaw = p._rawValues || [];
+                    const pActive = p.IsActive !== undefined ? p.IsActive : (p.isactive !== undefined ? p.isactive : (pRaw[4] !== undefined ? pRaw[4] : '1'));
+                    if (String(pActive).trim() === '0') return false;
+                    const pProdId = String(p.ProductID || p.productid || pRaw[1] || '').trim();
+                    return pProdId === String(prodId).trim();
+                });
+
+                let priceStr = prices.map(p => {
+                    const pRaw = p._rawValues || [];
+                    const sizeCode = String(p.SizeCode || p.sizecode || pRaw[2] || '').trim();
+                    const price = p.Price || p.price || pRaw[3] || 0;
+                    // Match CupSizes where ProductPrices.SizeCode = CupSizes.SizeCode
+                    const cupObj = (db.cupSizes || []).find(cs => String(cs.SizeCode || cs.sizecode || (cs._rawValues || [])[0]).trim() === sizeCode);
+                    const sizeName = cupObj ? (cupObj.SizeName || cupObj.sizename || (cupObj._rawValues || [])[1] || sizeCode) : sizeCode;
+                    return `${sizeName}: $${price}`;
+                }).join(' / ');
+                if (!priceStr) priceStr = '未設定價格';
+
+                // Desktop Table Row
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-6">
+                        <div class="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center border border-slate-200 flex-shrink-0">
+                            ${prodImage ? `<img src="${prodImage}" alt="${prodName}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/100x100/f1f5f9/94a3b8?text=Drink';">` : `<i class="fa-solid fa-mug-hot text-slate-400"></i>`}
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-6">
+                        <div class="font-mono text-xs text-sky-700 font-bold mb-0.5">${prodId}</div>
+                        <div class="font-bold text-slate-900">${prodName}</div>
+                    </td>
+                    <td class="py-3.5 px-6 text-slate-600 font-medium">${catName}</td>
+                    <td class="py-3.5 px-6 font-mono font-medium text-sky-700">${priceStr}</td>
+                    <td class="py-3.5 px-6 text-center">
+                        <button onclick="toggleProductStatus('${prodId}')" class="px-3 py-1 rounded-full text-xs font-bold transition ${isAvailable ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}">
+                            ${isAvailable ? '販售中' : '暫停中'}
+                        </button>
+                    </td>
+                    <td class="py-3.5 px-6 text-right space-x-2">
+                        <button onclick="openProductModal('edit', '${prodId}')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 text-xs font-bold transition">修改</button>
+                        <button onclick="deleteProduct('${prodId}')" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-red-600 text-xs font-bold transition">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                // Mobile Card
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between space-y-3';
+                card.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="w-16 h-16 rounded-2xl bg-slate-100 overflow-hidden flex items-center justify-center border border-slate-200 flex-shrink-0">
+                            ${prodImage ? `<img src="${prodImage}" alt="${prodName}" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/100x100/f1f5f9/94a3b8?text=Drink';">` : `<i class="fa-solid fa-mug-hot text-slate-400 text-xl"></i>`}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="text-xs font-mono font-bold text-sky-700">${prodId}</div>
+                                <span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-medium flex-shrink-0">${catName}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-900 text-base truncate mt-0.5">${prodName}</h3>
+                            <div class="text-xs font-mono font-bold text-sky-700 mt-1">${priceStr}</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                        <button onclick="toggleProductStatus('${prodId}')" class="py-2.5 px-2 rounded-xl text-xs font-bold transition text-center ${isAvailable ? 'bg-emerald-100 text-emerald-700 active:bg-emerald-200' : 'bg-amber-100 text-amber-700 active:bg-amber-200'}">
+                            ${isAvailable ? '販售中' : '暫停中'}
+                        </button>
+                        <button onclick="openProductModal('edit', '${prodId}')" class="py-2.5 px-2 rounded-xl bg-slate-100 active:bg-sky-100 text-slate-700 text-xs font-bold transition text-center">修改</button>
+                        <button onclick="deleteProduct('${prodId}')" class="py-2.5 px-2 rounded-xl bg-red-50 active:bg-red-100 text-red-600 text-xs font-bold transition text-center">刪除</button>
+                    </div>
+                `;
+                mobileList.appendChild(card);
+            });
+        }
+
+        function getProductIsAvailable(prod) {
+            const raw = prod._rawValues || [];
+            const val = prod.IsAvailable !== undefined ? prod.IsAvailable : (prod.isavailable !== undefined ? prod.isavailable : (raw[6] !== undefined ? raw[6] : '1'));
+            return String(val).trim() === '1' || String(val).trim().toUpperCase() === 'TRUE';
+        }
+
+        function toggleProductStatus(prodId) {
+            const prod = (db.products || []).find(p => String(p.ProductID || p.productid || (p._rawValues || [])[0]) === String(prodId));
+            if (!prod) return;
+            const current = getProductIsAvailable(prod);
+            const nextVal = current ? '0' : '1';
+            const nowStr = getCurrentDateTimeString();
+
+            if (!prod.CreateDate && prod._rawValues && prod._rawValues[8]) {
+                prod.CreateDate = prod._rawValues[8];
+            }
+
+            prod.IsAvailable = nextVal;
+            prod.isavailable = nextVal;
+            prod.UpdateDate = nowStr;
+            prod.updatedate = nowStr;
+
+            if (prod._rawValues) {
+                prod._rawValues[6] = nextVal;
+                prod._rawValues[9] = nowStr;
+            }
+
+            renderAdminProducts(currentAdminCategory);
+            showToast(`已更新品項狀態為：${nextVal === '1' ? '販售中' : '暫停中'}`);
+            syncMenuToSpreadsheet();
+        }
+
+        function populateCategorySelect() {
+            const select = document.getElementById('input-prod-category');
+            select.innerHTML = '';
+            (db.categories || []).forEach(cat => {
+                const raw = cat._rawValues || [];
+                const isActive = cat.IsActive !== undefined ? cat.IsActive : (cat.isactive !== undefined ? cat.isactive : (raw[6] !== undefined ? raw[6] : '1'));
+                if (String(isActive).trim() === '0') return;
+                const catId = cat.CategoryID || cat.categoryid || raw[0];
+                const catName = cat.CategoryName || cat.categoryname || raw[1] || catId;
+                if (!catId) return;
+                const opt = document.createElement('option');
+                opt.value = catId;
+                opt.innerText = catName;
+                select.appendChild(opt);
+            });
+        }
+
+        function getCupSizesForCategory(catId) {
+            const cat = (db.categories || []).find(c => String(c.CategoryID || c.categoryid || (c._rawValues || [])[0]).trim() === String(catId).trim());
+            const catSizeType = cat ? String(cat.SizeType || cat.sizetype || (cat._rawValues || [])[3] || '').trim() : '';
+
+            const activeCups = (db.cupSizes || []).filter(cs => {
+                const raw = cs._rawValues || [];
+                const isActive = cs.IsActive !== undefined ? cs.IsActive : (cs.isactive !== undefined ? cs.isactive : (raw[5] !== undefined ? raw[5] : '1'));
+                return String(isActive).trim() !== '0';
+            });
+
+            if (catSizeType) {
+                const matched = activeCups.filter(cs => {
+                    const st = String(cs.SizeType || cs.sizetype || (cs._rawValues || [])[2] || '').trim();
+                    return st === catSizeType;
+                });
+                if (matched.length > 0) return matched;
+            }
+            return activeCups;
+        }
+
+        function renderProductModalSizeInputs(prodIdOverride = null) {
+            const container = document.getElementById('product-modal-sizes-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const prodId = prodIdOverride !== null ? prodIdOverride : document.getElementById('edit-product-id').value;
+            const catId = document.getElementById('input-prod-category').value;
+            const cups = getCupSizesForCategory(catId);
+
+            if (cups.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-xs text-slate-400">尚無可用杯型設定（請檢查 CupSizes 試算表）</div>`;
+                return;
+            }
+
+            cups.forEach(cs => {
+                const raw = cs._rawValues || [];
+                const sizeCode = String(cs.SizeCode || cs.sizecode || raw[0] || '').trim();
+                const sizeName = cs.SizeName || cs.sizename || raw[1] || sizeCode;
+
+                let existingPrice = '';
+                if (prodId) {
+                    const priceObj = (db.productPrices || []).find(p => {
+                        const pRaw = p._rawValues || [];
+                        const pProdId = String(p.ProductID || p.productid || pRaw[1] || '').trim();
+                        const pSizeCode = String(p.SizeCode || p.sizecode || pRaw[2] || '').trim();
+                        return pProdId === String(prodId).trim() && pSizeCode === sizeCode;
+                    });
+                    if (priceObj) {
+                        existingPrice = priceObj.Price !== undefined ? priceObj.Price : (priceObj.price !== undefined ? priceObj.price : (priceObj._rawValues || [])[3] || '');
+                    }
+                }
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'space-y-1';
+                wrapper.innerHTML = `
+                    <label class="block font-bold text-slate-700">${sizeName} 金額 *</label>
+                    <input type="number" min="0" data-size-code="${sizeCode}" value="${existingPrice}" oninput="autoSaveProductOnEdit()" placeholder="請輸入金額" class="prod-size-price-input w-full px-3.5 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-sky-600 bg-white text-slate-800">
+                `;
+                container.appendChild(wrapper);
+            });
+        }
+
+        function upsertProductPricesFromModal(prodId, nowStr) {
+            const inputs = document.querySelectorAll('#product-modal-sizes-container .prod-size-price-input');
+            inputs.forEach(inp => {
+                const sizeCode = String(inp.getAttribute('data-size-code') || '').trim();
+                const valStr = inp.value.trim();
+                if (!sizeCode) return;
+
+                const existing = (db.productPrices || []).find(p => {
+                    const pRaw = p._rawValues || [];
+                    const pProdId = String(p.ProductID || p.productid || pRaw[1] || '').trim();
+                    const pSizeCode = String(p.SizeCode || p.sizecode || pRaw[2] || '').trim();
+                    return pProdId === String(prodId).trim() && pSizeCode === sizeCode;
+                });
+
+                if (valStr === '') {
+                    if (existing) {
+                        if (!existing.CreateDate && existing._rawValues && existing._rawValues[5]) {
+                            existing.CreateDate = existing._rawValues[5];
+                        }
+                        existing.IsActive = '0';
+                        existing.isactive = '0';
+                        existing.UpdateDate = nowStr;
+                        existing.updatedate = nowStr;
+                        if (existing._rawValues) {
+                            existing._rawValues[4] = '0';
+                            existing._rawValues[6] = nowStr;
+                        }
+                    }
+                    return;
+                }
+
+                const priceNum = Number(valStr);
+                if (existing) {
+                    if (!existing.CreateDate && existing._rawValues && existing._rawValues[5]) {
+                        existing.CreateDate = existing._rawValues[5];
+                    }
+                    existing.Price = priceNum;
+                    existing.price = priceNum;
+                    existing.IsActive = '1';
+                    existing.isactive = '1';
+                    existing.UpdateDate = nowStr;
+                    existing.updatedate = nowStr;
+                    if (existing._rawValues) {
+                        existing._rawValues[3] = priceNum;
+                        existing._rawValues[4] = '1';
+                        existing._rawValues[6] = nowStr;
+                    }
+                } else {
+                    const newPriceId = 'PRC-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+                    db.productPrices.push({
+                        PriceID: newPriceId,
+                        ProductID: prodId,
+                        SizeCode: sizeCode,
+                        Price: priceNum,
+                        IsActive: '1',
+                        CreateDate: nowStr,
+                        UpdateDate: '',
+                        _rawValues: [newPriceId, prodId, sizeCode, priceNum, '1', nowStr, '']
+                    });
+                }
+            });
+        }
+
+        function openProductModal(mode, prodId = null) {
+            const modal = document.getElementById('product-modal');
+            const titleEl = document.getElementById('product-modal-title');
+
+            document.getElementById('edit-product-id').value = '';
+            document.getElementById('input-prod-name').value = '';
+            document.getElementById('input-prod-status').value = '1';
+            document.getElementById('input-prod-image').value = '';
+            document.getElementById('input-prod-desc').value = '';
+
+            if (mode === 'edit' && prodId) {
+                titleEl.innerText = '修改飲料品項';
+                const prod = (db.products || []).find(p => String(p.ProductID || p.productid || (p._rawValues || [])[0]) === String(prodId));
+                if (prod) {
+                    const raw = prod._rawValues || [];
+                    document.getElementById('edit-product-id').value = prodId;
+                    document.getElementById('input-prod-name').value = prod.ProductName || prod.productname || raw[2] || '';
+                    document.getElementById('input-prod-category').value = prod.CategoryID || prod.categoryid || raw[1] || '';
+                    document.getElementById('input-prod-status').value = getProductIsAvailable(prod) ? '1' : '0';
+                    document.getElementById('input-prod-image').value = prod.Image || prod.image || raw[3] || '';
+                    document.getElementById('input-prod-desc').value = prod.Description || prod.description || raw[4] || '';
+                }
+                renderProductModalSizeInputs(prodId);
+            } else {
+                titleEl.innerText = '新增飲料品項';
+                renderProductModalSizeInputs('');
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.add('hidden');
+        }
+
+        function autoSaveProductOnEdit() {
+            const prodId = document.getElementById('edit-product-id').value;
+            if (!prodId) return;
+            
+            const prod = (db.products || []).find(p => String(p.ProductID || p.productid || (p._rawValues || [])[0]) === String(prodId));
+            if (!prod) return;
+
+            const name = document.getElementById('input-prod-name').value.trim();
+            const category = document.getElementById('input-prod-category').value;
+            const status = document.getElementById('input-prod-status').value;
+            const image = document.getElementById('input-prod-image').value.trim();
+            const desc = document.getElementById('input-prod-desc').value.trim();
+            const nowStr = getCurrentDateTimeString();
+
+            if (!prod.CreateDate && prod._rawValues && prod._rawValues[8]) {
+                prod.CreateDate = prod._rawValues[8];
+            }
+
+            prod.ProductName = name;
+            prod.CategoryID = category;
+            prod.IsAvailable = status;
+            prod.Image = image;
+            prod.Description = desc;
+            prod.UpdateDate = nowStr;
+
+            if (prod._rawValues) {
+                prod._rawValues[1] = category;
+                prod._rawValues[2] = name;
+                prod._rawValues[3] = image;
+                prod._rawValues[4] = desc;
+                prod._rawValues[6] = status;
+                prod._rawValues[9] = nowStr;
+            }
+
+            upsertProductPricesFromModal(prodId, nowStr);
+            renderAdminProducts(currentAdminCategory);
+            syncMenuToSpreadsheet();
+        }
+
+        function saveProductData() {
+            const prodId = document.getElementById('edit-product-id').value;
+            const name = document.getElementById('input-prod-name').value.trim();
+            const category = document.getElementById('input-prod-category').value;
+            const status = document.getElementById('input-prod-status').value;
+            const image = document.getElementById('input-prod-image').value.trim();
+            const desc = document.getElementById('input-prod-desc').value.trim();
+            const nowStr = getCurrentDateTimeString();
+
+            if (!name) {
+                showAlertModal("請填寫飲品名稱！", "error");
+                return;
+            }
+
+            let targetProdId = prodId;
+            if (prodId) {
+                const prod = (db.products || []).find(p => String(p.ProductID || p.productid || (p._rawValues || [])[0]) === String(prodId));
+                if (prod) {
+                    if (!prod.CreateDate && prod._rawValues && prod._rawValues[8]) {
+                        prod.CreateDate = prod._rawValues[8];
+                    }
+                    prod.ProductName = name;
+                    prod.CategoryID = category;
+                    prod.IsAvailable = status;
+                    prod.Image = image;
+                    prod.Description = desc;
+                    prod.IsActive = '1';
+                    prod.UpdateDate = nowStr;
+                    if (prod._rawValues) {
+                        prod._rawValues[1] = category;
+                        prod._rawValues[2] = name;
+                        prod._rawValues[3] = image;
+                        prod._rawValues[4] = desc;
+                        prod._rawValues[6] = status;
+                        prod._rawValues[7] = '1';
+                        prod._rawValues[9] = nowStr;
+                    }
+                }
+            } else {
+                targetProdId = 'PROD-' + Date.now();
+                const nextSort = (db.products || []).length + 1;
+                db.products.push({
+                    ProductID: targetProdId,
+                    CategoryID: category,
+                    ProductName: name,
+                    Image: image,
+                    Description: desc,
+                    SortOrder: nextSort,
+                    IsAvailable: status,
+                    IsActive: '1',
+                    CreateDate: nowStr,
+                    UpdateDate: '',
+                    _rawValues: [targetProdId, category, name, image, desc, nextSort, status, '1', nowStr, '']
+                });
+            }
+
+            upsertProductPricesFromModal(targetProdId, nowStr);
+
+            closeProductModal();
+            renderAdminProducts(currentAdminCategory);
+            showToast(prodId ? `已更新品項與杯型售價：${name}` : `已新增品項與杯型售價：${name}`);
+            syncMenuToSpreadsheet();
+        }
+
+        function deleteProduct(prodId) {
+            const prod = (db.products || []).find(p => String(p.ProductID || p.productid || (p._rawValues || [])[0]) === String(prodId));
+            if (!prod) return;
+            const name = prod.ProductName || prod.productname || (prod._rawValues || [])[2] || '品項';
+            const nowStr = getCurrentDateTimeString();
+
+            if (!prod.CreateDate && prod._rawValues && prod._rawValues[8]) {
+                prod.CreateDate = prod._rawValues[8];
+            }
+
+            prod.IsActive = '0';
+            prod.UpdateDate = nowStr;
+            if (prod._rawValues) {
+                prod._rawValues[7] = '0';
+                prod._rawValues[9] = nowStr;
+            }
+
+            renderAdminProducts(currentAdminCategory);
+            showToast(`已刪除品項「${name}」`);
+            syncMenuToSpreadsheet();
+        }
+
+        async function syncMenuToSpreadsheet() {
+            if (!webAppUrl) return;
+            try {
+                await fetch(webAppUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'syncAll',
+                        products: db.products,
+                        productPrices: db.productPrices
+                    })
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderOptionsTable() {
+            const tbody = document.getElementById('admin-options-table-body');
+            const mobileList = document.getElementById('admin-options-mobile-list');
+            if (!tbody || !mobileList) return;
+            tbody.innerHTML = '';
+            mobileList.innerHTML = '';
+
+            const activeOptions = (db.options || [])
+                .filter(opt => {
+                    const raw = opt._rawValues || [];
+                    const isActive = opt.IsActive !== undefined ? opt.IsActive : (opt.isactive !== undefined ? opt.isactive : (raw[4] !== undefined ? raw[4] : '1'));
+                    return String(isActive).trim() !== '0';
+                })
+                .sort((a, b) => {
+                    const sa = Number(a.SortOrder || a.sortorder || (a._rawValues || [])[3] || 9999);
+                    const sb = Number(b.SortOrder || b.sortorder || (b._rawValues || [])[3] || 9999);
+                    return sa - sb;
+                });
+
+            if (activeOptions.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-slate-400">目前尚無選項</td></tr>`;
+                mobileList.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">目前尚無選項</div>`;
+                return;
+            }
+            activeOptions.forEach((opt) => {
+                const raw = opt._rawValues || [];
+                const optId = opt.OptionID || opt.optionid || raw[0] || '';
+                const type = opt.Type || opt.type || raw[2] || '';
+                const name = opt.OptionName || opt.optionname || raw[1] || '';
+                
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-option-id', optId);
+                tr.className = 'hover:bg-slate-50 border-b border-slate-100 bg-white transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-3">
+                        <div class="option-drag-handle inline-flex items-center justify-center p-1 rounded hover:bg-slate-100 cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 select-none" title="按住拖拉排序">
+                            <i class="fa-solid fa-grip-vertical text-xs"></i>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3 font-medium text-slate-700">${type}</td>
+                    <td class="py-3 px-3 font-bold text-slate-900">${name}</td>
+                    <td class="py-3 px-3 text-right space-x-1">
+                        <button onclick="openOptionModal('edit', '${optId}')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 text-xs font-bold transition">修改</button>
+                        <button onclick="deleteOption('${optId}')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-red-600 text-xs font-bold transition">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                const card = document.createElement('div');
+                card.setAttribute('data-option-id', optId);
+                card.className = 'p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 transition';
+                card.innerHTML = `
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <div class="option-drag-handle p-1 cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 flex items-center justify-center flex-shrink-0" title="按住拖拉排序">
+                            <i class="fa-solid fa-grip-vertical text-sm"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-800">${type}</span>
+                            <div class="font-bold text-slate-900 text-sm mt-1 truncate">${name}</div>
+                        </div>
+                    </div>
+                    <div class="flex space-x-1.5 flex-shrink-0">
+                        <button onclick="openOptionModal('edit', '${optId}')" class="px-3 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold">修改</button>
+                        <button onclick="deleteOption('${optId}')" class="px-3 py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold">刪除</button>
+                    </div>
+                `;
+                mobileList.appendChild(card);
+            });
+
+            initOptionsDragAndDrop();
+        }
+
+        function initOptionsDragAndDrop() {
+            if (typeof Sortable === 'undefined') return;
+            const tbody = document.getElementById('admin-options-table-body');
+            const mobileList = document.getElementById('admin-options-mobile-list');
+
+            if (optionsDesktopSortable) {
+                optionsDesktopSortable.destroy();
+                optionsDesktopSortable = null;
+            }
+            if (optionsMobileSortable) {
+                optionsMobileSortable.destroy();
+                optionsMobileSortable = null;
+            }
+
+            if (tbody) {
+                optionsDesktopSortable = Sortable.create(tbody, {
+                    animation: 180,
+                    handle: '.option-drag-handle',
+                    ghostClass: 'bg-sky-50',
+                    onEnd: function() {
+                        const orderedIds = Array.from(tbody.querySelectorAll('tr[data-option-id]')).map(el => el.getAttribute('data-option-id'));
+                        applyOptionSortOrder(orderedIds);
+                    }
+                });
+            }
+
+            if (mobileList) {
+                optionsMobileSortable = Sortable.create(mobileList, {
+                    animation: 180,
+                    handle: '.option-drag-handle',
+                    ghostClass: 'bg-sky-50',
+                    onEnd: function() {
+                        const orderedIds = Array.from(mobileList.querySelectorAll('div[data-option-id]')).map(el => el.getAttribute('data-option-id'));
+                        applyOptionSortOrder(orderedIds);
+                    }
+                });
+            }
+        }
+
+        function applyOptionSortOrder(orderedIds) {
+            if (!orderedIds || orderedIds.length === 0) return;
+            const nowStr = getCurrentDateTimeString();
+
+            orderedIds.forEach((optId, index) => {
+                const newSort = index + 1;
+                const opt = (db.options || []).find(o => String(o.OptionID || o.optionid || (o._rawValues || [])[0]).trim() === String(optId).trim());
+                if (opt) {
+                    if (!opt.CreateDate && opt._rawValues && opt._rawValues[5]) {
+                        opt.CreateDate = opt._rawValues[5];
+                    }
+                    opt.SortOrder = newSort;
+                    opt.sortorder = newSort;
+                    opt.UpdateDate = nowStr;
+                    opt.updatedate = nowStr;
+                    if (opt._rawValues) {
+                        opt._rawValues[3] = newSort;
+                        opt._rawValues[6] = nowStr;
+                    }
+                }
+            });
+
+            db.options.sort((a, b) => {
+                const sa = Number(a.SortOrder || a.sortorder || (a._rawValues || [])[3] || 9999);
+                const sb = Number(b.SortOrder || b.sortorder || (b._rawValues || [])[3] || 9999);
+                return sa - sb;
+            });
+
+            renderOptionsTable();
+            showToast("已更新選項排序並寫入 Options 試算表！");
+            syncOptionsToSpreadsheet();
+        }
+
+        function renderToppingsTable() {
+            const tbody = document.getElementById('admin-toppings-table-body');
+            const mobileList = document.getElementById('admin-toppings-mobile-list');
+            if (!tbody || !mobileList) return;
+            tbody.innerHTML = '';
+            mobileList.innerHTML = '';
+
+            const activeToppings = (db.toppings || [])
+                .filter(top => {
+                    const raw = top._rawValues || [];
+                    const isActive = top.IsActive !== undefined ? top.IsActive : (top.isactive !== undefined ? top.isactive : (raw[5] !== undefined ? raw[5] : '1'));
+                    return String(isActive).trim() !== '0';
+                })
+                .sort((a, b) => {
+                    const sa = Number(a.SortOrder || a.sortorder || (a._rawValues || [])[3] || 9999);
+                    const sb = Number(b.SortOrder || b.sortorder || (b._rawValues || [])[3] || 9999);
+                    return sa - sb;
+                });
+
+            if (activeToppings.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">目前尚無加料選項</td></tr>`;
+                mobileList.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs">目前尚無加料選項</div>`;
+                return;
+            }
+            activeToppings.forEach((top) => {
+                const raw = top._rawValues || [];
+                const topId = top.ToppingID || top.toppingid || raw[0] || '';
+                const topName = top.ToppingName || top.toppingname || raw[1] || '';
+                const price = top.Price || top.price || raw[2] || 0;
+                const isAvail = top.IsAvailable !== undefined ? top.IsAvailable : (top.isavailable !== undefined ? top.isavailable : (raw[4] !== undefined ? raw[4] : '1'));
+                const isAvailable = String(isAvail).trim() === '1' || String(isAvail).trim().toUpperCase() === 'TRUE';
+
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-topping-id', topId);
+                tr.className = 'hover:bg-slate-50 border-b border-slate-100 bg-white transition';
+                tr.innerHTML = `
+                    <td class="py-3 px-3">
+                        <div class="topping-drag-handle inline-flex items-center justify-center p-1 rounded hover:bg-slate-100 cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 select-none" title="按住拖拉排序">
+                            <i class="fa-solid fa-grip-vertical text-xs"></i>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3 font-mono text-slate-500">${topId}</td>
+                    <td class="py-3 px-3 font-bold text-slate-900">${topName}</td>
+                    <td class="py-3 px-3 font-mono text-sky-700">$${price}</td>
+                    <td class="py-3 px-3 text-center">
+                        <button onclick="toggleToppingStatus('${topId}')" class="px-2.5 py-1 rounded-full text-xs font-bold transition ${isAvailable ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-amber-100 text-amber-700 hover:bg-amber-200'}">
+                            ${isAvailable ? '販售中' : '暫停中'}
+                        </button>
+                    </td>
+                    <td class="py-3 px-3 text-right space-x-1">
+                        <button onclick="openToppingModal('edit', '${topId}')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-sky-100 text-slate-600 hover:text-sky-700 text-xs font-bold transition">修改</button>
+                        <button onclick="deleteTopping('${topId}')" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-red-600 text-xs font-bold transition">刪除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                const card = document.createElement('div');
+                card.setAttribute('data-topping-id', topId);
+                card.className = 'p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5 transition';
+                card.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center space-x-2.5 min-w-0">
+                            <div class="topping-drag-handle p-1 cursor-grab active:cursor-grabbing text-slate-400 hover:text-sky-600 flex items-center justify-center flex-shrink-0" title="按住拖拉排序">
+                                <i class="fa-solid fa-grip-vertical text-sm"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="font-bold text-slate-900 text-sm truncate">${topName} <span class="font-mono text-sky-700 ml-1">$${price}</span></div>
+                                <div class="text-[11px] font-mono text-slate-400 truncate">${topId}</div>
+                            </div>
+                        </div>
+                        <button onclick="toggleToppingStatus('${topId}')" class="px-3 py-1.5 rounded-full text-xs font-bold transition flex-shrink-0 ${isAvailable ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
+                            ${isAvailable ? '販售中' : '暫停中'}
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <button onclick="openToppingModal('edit', '${topId}')" class="py-2 rounded-xl bg-white border border-slate-200 text-slate-700 text-xs font-bold">修改</button>
+                        <button onclick="deleteTopping('${topId}')" class="py-2 rounded-xl bg-red-50 text-red-600 text-xs font-bold">刪除</button>
+                    </div>
+                `;
+                mobileList.appendChild(card);
+            });
+
+            initToppingsDragAndDrop();
+        }
+
+        function initToppingsDragAndDrop() {
+            if (typeof Sortable === 'undefined') return;
+            const tbody = document.getElementById('admin-toppings-table-body');
+            const mobileList = document.getElementById('admin-toppings-mobile-list');
+
+            if (toppingsDesktopSortable) {
+                toppingsDesktopSortable.destroy();
+                toppingsDesktopSortable = null;
+            }
+            if (toppingsMobileSortable) {
+                toppingsMobileSortable.destroy();
+                toppingsMobileSortable = null;
+            }
+
+            if (tbody) {
+                toppingsDesktopSortable = Sortable.create(tbody, {
+                    animation: 180,
+                    handle: '.topping-drag-handle',
+                    ghostClass: 'bg-sky-50',
+                    onEnd: function() {
+                        const orderedIds = Array.from(tbody.querySelectorAll('tr[data-topping-id]')).map(el => el.getAttribute('data-topping-id'));
+                        applyToppingSortOrder(orderedIds);
+                    }
+                });
+            }
+
+            if (mobileList) {
+                toppingsMobileSortable = Sortable.create(mobileList, {
+                    animation: 180,
+                    handle: '.topping-drag-handle',
+                    ghostClass: 'bg-sky-50',
+                    onEnd: function() {
+                        const orderedIds = Array.from(mobileList.querySelectorAll('div[data-topping-id]')).map(el => el.getAttribute('data-topping-id'));
+                        applyToppingSortOrder(orderedIds);
+                    }
+                });
+            }
+        }
+
+        function applyToppingSortOrder(orderedIds) {
+            if (!orderedIds || orderedIds.length === 0) return;
+            const nowStr = getCurrentDateTimeString();
+
+            orderedIds.forEach((topId, index) => {
+                const newSort = index + 1;
+                const top = (db.toppings || []).find(t => String(t.ToppingID || t.toppingid || (t._rawValues || [])[0]).trim() === String(topId).trim());
+                if (top) {
+                    if (!top.CreateDate && top._rawValues && top._rawValues[6]) {
+                        top.CreateDate = top._rawValues[6];
+                    }
+                    top.SortOrder = newSort;
+                    top.sortorder = newSort;
+                    top.UpdateDate = nowStr;
+                    top.updatedate = nowStr;
+                    if (top._rawValues) {
+                        top._rawValues[3] = newSort;
+                        top._rawValues[7] = nowStr;
+                    }
+                }
+            });
+
+            db.toppings.sort((a, b) => {
+                const sa = Number(a.SortOrder || a.sortorder || (a._rawValues || [])[3] || 9999);
+                const sb = Number(b.SortOrder || b.sortorder || (b._rawValues || [])[3] || 9999);
+                return sa - sb;
+            });
+
+            renderToppingsTable();
+            showToast("已更新加料排序並寫入 Toppings 試算表！");
+            syncOptionsToSpreadsheet();
+        }
+
+        function openOptionModal(mode, optId = null) {
+            document.getElementById('edit-option-idx').value = optId !== null ? optId : '';
+            document.getElementById('input-opt-name').value = '';
+            document.getElementById('option-modal-title').innerText = mode === 'edit' ? '修改選項' : '新增選項';
+            if (mode === 'edit' && optId !== null) {
+                const opt = (db.options || []).find(o => String(o.OptionID || o.optionid || (o._rawValues || [])[0]) === String(optId));
+                if (opt) {
+                    const raw = opt._rawValues || [];
+                    document.getElementById('input-opt-type').value = opt.Type || opt.type || raw[2] || '溫度';
+                    document.getElementById('input-opt-name').value = opt.OptionName || opt.optionname || raw[1] || '';
+                }
+            }
+            document.getElementById('option-modal').classList.remove('hidden');
+        }
+
+        function closeOptionModal() {
+            document.getElementById('option-modal').classList.add('hidden');
+        }
+
+        function saveOptionData() {
+            const optId = document.getElementById('edit-option-idx').value;
+            const type = document.getElementById('input-opt-type').value;
+            const name = document.getElementById('input-opt-name').value.trim();
+            const nowStr = getCurrentDateTimeString();
+
+            if (!name) {
+                showAlertModal("請填寫選項名稱！", "error");
+                return;
+            }
+
+            if (optId !== '') {
+                const opt = (db.options || []).find(o => String(o.OptionID || o.optionid || (o._rawValues || [])[0]) === String(optId));
+                if (opt) {
+                    if (!opt.CreateDate && opt._rawValues && opt._rawValues[5]) {
+                        opt.CreateDate = opt._rawValues[5];
+                    }
+                    opt.Type = type;
+                    opt.OptionName = name;
+                    opt.UpdateDate = nowStr;
+                    if (opt._rawValues) {
+                        opt._rawValues[1] = name;
+                        opt._rawValues[2] = type;
+                        opt._rawValues[6] = nowStr;
+                    }
+                }
+            } else {
+                const newId = 'OPT-' + Date.now();
+                const nextSort = (db.options || []).length + 1;
+                db.options.push({
+                    OptionID: newId,
+                    OptionName: name,
+                    Type: type,
+                    SortOrder: nextSort,
+                    IsActive: '1',
+                    CreateDate: nowStr,
+                    UpdateDate: '',
+                    _rawValues: [newId, name, type, nextSort, '1', nowStr, '']
+                });
+            }
+
+            closeOptionModal();
+            renderOptionsTable();
+            showToast("選項儲存成功！");
+            syncOptionsToSpreadsheet();
+        }
+
+        function deleteOption(optId) {
+            const opt = (db.options || []).find(o => String(o.OptionID || o.optionid || (o._rawValues || [])[0]) === String(optId));
+            if (!opt) return;
+            const nowStr = getCurrentDateTimeString();
+            if (!opt.CreateDate && opt._rawValues && opt._rawValues[5]) {
+                opt.CreateDate = opt._rawValues[5];
+            }
+            opt.IsActive = '0';
+            opt.UpdateDate = nowStr;
+            if (opt._rawValues) {
+                opt._rawValues[4] = '0';
+                opt._rawValues[6] = nowStr;
+            }
+            renderOptionsTable();
+            showToast("選項已刪除");
+            syncOptionsToSpreadsheet();
+        }
+
+        async function syncOptionsToSpreadsheet() {
+            if (!webAppUrl) return;
+            try {
+                await fetch(webAppUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'syncAll',
+                        options: db.options,
+                        toppings: db.toppings
+                    })
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openToppingModal(mode, topId = null) {
+            document.getElementById('edit-topping-idx').value = topId !== null ? topId : '';
+            document.getElementById('input-top-name').value = '';
+            document.getElementById('input-top-price').value = '';
+            document.getElementById('input-top-status').value = '1';
+            document.getElementById('topping-modal-title').innerText = mode === 'edit' ? '修改加料設定' : '新增加料設定';
+
+            if (mode === 'edit' && topId !== null) {
+                const top = (db.toppings || []).find(t => String(t.ToppingID || t.toppingid || (t._rawValues || [])[0]) === String(topId));
+                if (top) {
+                    const raw = top._rawValues || [];
+                    document.getElementById('input-top-name').value = top.ToppingName || top.toppingname || raw[1] || '';
+                    document.getElementById('input-top-price').value = top.Price || top.price || raw[2] || 0;
+                    const isAvail = top.IsAvailable !== undefined ? top.IsAvailable : (top.isavailable !== undefined ? top.isavailable : (raw[4] !== undefined ? raw[4] : '1'));
+                    document.getElementById('input-top-status').value = String(isAvail).trim() === '1' ? '1' : '0';
+                }
+            }
+            document.getElementById('topping-modal').classList.remove('hidden');
+        }
+
+        function closeToppingModal() {
+            document.getElementById('topping-modal').classList.add('hidden');
+        }
+
+        function saveToppingData() {
+            const topId = document.getElementById('edit-topping-idx').value;
+            const name = document.getElementById('input-top-name').value.trim();
+            const price = document.getElementById('input-top-price').value.trim();
+            const status = document.getElementById('input-top-status').value;
+            const nowStr = getCurrentDateTimeString();
+
+            if (!name || !price) {
+                showAlertModal("請填寫加料名稱與加價金額！", "error");
+                return;
+            }
+
+            if (topId !== '') {
+                const top = (db.toppings || []).find(t => String(t.ToppingID || t.toppingid || (t._rawValues || [])[0]) === String(topId));
+                if (top) {
+                    if (!top.CreateDate && top._rawValues && top._rawValues[6]) {
+                        top.CreateDate = top._rawValues[6];
+                    }
+                    top.ToppingName = name;
+                    top.Price = price;
+                    top.IsAvailable = status;
+                    top.UpdateDate = nowStr;
+                    if (top._rawValues) {
+                        top._rawValues[1] = name;
+                        top._rawValues[2] = price;
+                        top._rawValues[4] = status;
+                        top._rawValues[7] = nowStr;
+                    }
+                }
+            } else {
+                const newId = 'TOP-' + Date.now();
+                const nextSort = (db.toppings || []).length + 1;
+                db.toppings.push({
+                    ToppingID: newId,
+                    ToppingName: name,
+                    Price: price,
+                    SortOrder: nextSort,
+                    IsAvailable: status,
+                    IsActive: '1',
+                    CreateDate: nowStr,
+                    UpdateDate: '',
+                    _rawValues: [newId, name, price, nextSort, status, '1', nowStr, '']
+                });
+            }
+
+            closeToppingModal();
+            renderToppingsTable();
+            showToast("加料設定儲存成功！");
+            syncOptionsToSpreadsheet();
+        }
+
+        function toggleToppingStatus(topId) {
+            const top = (db.toppings || []).find(t => String(t.ToppingID || t.toppingid || (t._rawValues || [])[0]) === String(topId));
+            if (!top) return;
+            const raw = top._rawValues || [];
+            const isAvail = top.IsAvailable !== undefined ? top.IsAvailable : (top.isavailable !== undefined ? top.isavailable : (raw[4] !== undefined ? raw[4] : '1'));
+            const current = String(isAvail).trim() === '1' || String(isAvail).trim().toUpperCase() === 'TRUE';
+            const nextVal = current ? '0' : '1';
+            const nowStr = getCurrentDateTimeString();
+
+            if (!top.CreateDate && raw[6]) {
+                top.CreateDate = raw[6];
+            }
+            top.IsAvailable = nextVal;
+            top.UpdateDate = nowStr;
+            if (raw.length > 0) {
+                raw[4] = nextVal;
+                raw[7] = nowStr;
+            }
+
+            renderToppingsTable();
+            showToast(`已切換加料狀態為：${nextVal === '1' ? '販售中' : '暫停中'}`);
+            syncOptionsToSpreadsheet();
+        }
+
+        function deleteTopping(topId) {
+            const top = (db.toppings || []).find(t => String(t.ToppingID || t.toppingid || (t._rawValues || [])[0]) === String(topId));
+            if (!top) return;
+            const nowStr = getCurrentDateTimeString();
+            if (!top.CreateDate && top._rawValues && top._rawValues[6]) {
+                top.CreateDate = top._rawValues[6];
+            }
+            top.IsActive = '0';
+            top.UpdateDate = nowStr;
+            if (top._rawValues) {
+                top._rawValues[5] = '0';
+                top._rawValues[7] = nowStr;
+            }
+            renderToppingsTable();
+            showToast("加料品項已刪除");
+            syncOptionsToSpreadsheet();
+        }
+
+        function saveStoreInfoLocally() {
+            const name = document.getElementById('store-edit-name').value.trim();
+            const code = document.getElementById('store-edit-code').value.trim();
+            const phone = document.getElementById('store-edit-phone').value.trim();
+            const time = document.getElementById('store-edit-time').value.trim();
+            const address = document.getElementById('store-edit-address').value.trim();
+            const logo = document.getElementById('store-edit-logo').value.trim();
+            const desc = document.getElementById('store-edit-desc').value.trim();
+            const nowStr = getCurrentDateTimeString();
+
+            if (!db.store) db.store = {};
+            const raw = db.store._rawValues || [];
+            const createDate = db.store.CreateDate || db.store.createdate || raw[11] || nowStr;
+
+            db.store.StoreName = name;
+            db.store.StoreCode = code;
+            db.store.Phone = phone;
+            db.store.Time = time;
+            db.store.Address = address;
+            db.store.Logo = logo;
+            db.store.Description = desc;
+            db.store.CreateDate = createDate;
+            db.store.UpdateDate = nowStr;
+
+            if (raw.length > 0) {
+                raw[1] = code;
+                raw[2] = name;
+                raw[3] = logo;
+                raw[4] = phone;
+                raw[5] = address;
+                raw[6] = time;
+                raw[7] = desc;
+                raw[11] = createDate;
+                raw[12] = nowStr;
+            } else {
+                db.store._rawValues = ['STORE-01', code, name, logo, phone, address, time, desc, '', '', '1', createDate, nowStr];
+            }
+
+            document.getElementById('admin-subtitle').innerText = name;
+            document.getElementById('page-title').innerText = `${name} - 後台管理`;
+
+            const logoImg = document.getElementById('header-logo-img');
+            const logoIcon = document.getElementById('header-logo-icon');
+            if (logo && logo.trim() !== '') {
+                logoImg.src = logo.trim();
+                logoImg.classList.remove('hidden');
+                logoIcon.classList.add('hidden');
+            } else {
+                logoImg.classList.add('hidden');
+                logoIcon.classList.remove('hidden');
+            }
+
+            showToast("店家資訊已更新並同步至試算表！");
+            syncStoreToSpreadsheet();
+        }
+
+        async function syncStoreToSpreadsheet() {
+            if (!webAppUrl) return;
+            try {
+                await fetch(webAppUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'syncAll',
+                        store: db.store
+                    })
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function renderPickupTimeSettings() {
+            const settings = db.storeSettings || {};
+            const raw = settings._rawValues || [];
+            const defaultStoreId = (db.store && (db.store.StoreID || db.store.storeid || (db.store._rawValues || [])[0])) || 'STORE-01';
+
+            const storeId = settings.StoreID || settings.storeid || raw[0] || defaultStoreId;
+            const instantPrep = settings.InstantPrepMin !== undefined && settings.InstantPrepMin !== '' ? settings.InstantPrepMin : (raw[1] || '15');
+            const reservePrep = settings.ReservePrepMin !== undefined && settings.ReservePrepMin !== '' ? settings.ReservePrepMin : (raw[2] || '15');
+            const reserveMaxDays = settings.ReserveMaxDays !== undefined && settings.ReserveMaxDays !== '' ? settings.ReserveMaxDays : (raw[3] || '7');
+            const openCloseMin = settings.OpenAndCloseMin !== undefined && settings.OpenAndCloseMin !== '' ? settings.OpenAndCloseMin : (raw[4] || '30');
+            const updateDate = settings.UpdateDate || settings.updatedate || raw[5] || '';
+
+            const storeIdEl = document.getElementById('pickup-store-id');
+            const instantEl = document.getElementById('pickup-instant-prep-min');
+            const reserveEl = document.getElementById('pickup-reserve-prep-min');
+            const maxDaysEl = document.getElementById('pickup-reserve-max-days');
+            const openCloseEl = document.getElementById('pickup-open-close-min');
+            const updatedBadge = document.getElementById('pickup-last-updated');
+
+            if (storeIdEl) storeIdEl.value = storeId;
+            if (instantEl) {
+                const instantStr = String(instantPrep).trim();
+                if (!Array.from(instantEl.options).some(o => o.value === instantStr) && instantStr) {
+                    const opt = document.createElement('option');
+                    opt.value = instantStr;
+                    opt.innerText = `${instantStr} 分鐘`;
+                    instantEl.appendChild(opt);
+                }
+                instantEl.value = instantStr || '15';
+            }
+            if (reserveEl) {
+                const valStr = String(reservePrep).trim();
+                if (!Array.from(reserveEl.options).some(o => o.value === valStr) && valStr) {
+                    const opt = document.createElement('option');
+                    opt.value = valStr;
+                    opt.innerText = `每隔 ${valStr} 分鐘`;
+                    reserveEl.appendChild(opt);
+                }
+                reserveEl.value = valStr || '15';
+            }
+            if (maxDaysEl) maxDaysEl.value = reserveMaxDays;
+            if (openCloseEl) openCloseEl.value = openCloseMin;
+            if (updatedBadge) {
+                updatedBadge.innerText = updateDate ? `最後更新：${updateDate}` : '尚未更新';
+            }
+        }
+
+        function savePickupTimeSettings() {
+            const storeId = document.getElementById('pickup-store-id').value.trim() || 'STORE-01';
+            const instantPrepMin = document.getElementById('pickup-instant-prep-min').value.trim();
+            const reservePrepMin = document.getElementById('pickup-reserve-prep-min').value.trim();
+            const reserveMaxDays = document.getElementById('pickup-reserve-max-days').value.trim();
+            const openCloseMin = document.getElementById('pickup-open-close-min').value.trim();
+            const nowStr = getCurrentDateTimeString();
+
+            if (instantPrepMin === '' || reservePrepMin === '' || reserveMaxDays === '' || openCloseMin === '') {
+                showAlertModal("請完整填寫所有取餐時間設定欄位！", "error");
+                return;
+            }
+
+            db.storeSettings = {
+                StoreID: storeId,
+                InstantPrepMin: Number(instantPrepMin),
+                ReservePrepMin: Number(reservePrepMin),
+                ReserveMaxDays: Number(reserveMaxDays),
+                OpenAndCloseMin: Number(openCloseMin),
+                UpdateDate: nowStr,
+                _rawValues: [storeId, Number(instantPrepMin), Number(reservePrepMin), Number(reserveMaxDays), Number(openCloseMin), nowStr]
+            };
+
+            const updatedBadge = document.getElementById('pickup-last-updated');
+            if (updatedBadge) {
+                updatedBadge.innerText = `最後更新：${nowStr}`;
+            }
+
+            showToast("取餐時間設定已儲存並寫入 StoreSettings 試算表！");
+            syncPickupTimeSettingsToSpreadsheet();
+        }
+
+        async function syncPickupTimeSettingsToSpreadsheet() {
+            if (!webAppUrl) return;
+            try {
+                await fetch(webAppUrl, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'syncAll',
+                        storeSettings: [db.storeSettings]
+                    })
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    </script>
+</body>
+</html>
