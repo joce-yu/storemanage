@@ -1156,7 +1156,7 @@
             renderAdminCategories();
             renderAdminCategoryTable();
             populateCategorySelect();
-            showToast("已更新類別排序並寫入 ProductCategories 試算表！");
+            showToast("已更新類別排序");
             syncCategoriesToSpreadsheet();
         }
 
@@ -2197,7 +2197,7 @@
             });
 
             renderOptionsTable();
-            showToast("已更新選項排序並寫入 Options 試算表！");
+            showToast("已更新選項排序");
             syncOptionsToSpreadsheet();
         }
 
@@ -2354,7 +2354,7 @@
             });
 
             renderToppingsTable();
-            showToast("已更新加料排序並寫入 Toppings 試算表！");
+            showToast("已更新加料排序");
             syncOptionsToSpreadsheet();
         }
 
@@ -2627,7 +2627,7 @@
                 logoIcon.classList.remove('hidden');
             }
 
-            showToast("店家資訊已更新並同步至試算表！");
+            showToast("店家資訊已更新");
             syncStoreToSpreadsheet();
         }
 
@@ -2721,7 +2721,7 @@
                 updatedBadge.innerText = `最後更新：${nowStr}`;
             }
 
-            showToast("取餐時間設定已儲存並寫入 StoreSettings 試算表！");
+            showToast("取餐時間設定已儲存");
             syncPickupTimeSettingsToSpreadsheet();
         }
 
