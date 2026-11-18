@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">後台管理網站</title>
+    <title id="page-title">後台管理系統</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts Noto Sans TC -->
@@ -80,7 +80,7 @@
                     <img id="header-logo-img" src="" alt="Logo" class="w-full h-full object-cover hidden" onerror="this.classList.add('hidden'); document.getElementById('header-logo-icon').classList.remove('hidden');">
                 </div>
                 <div class="min-w-0">
-                    <h1 class="text-base sm:text-xl font-bold tracking-wide truncate">後台管理網站</h1>
+                    <h1 class="text-base sm:text-xl font-bold tracking-wide truncate">後台管理系統</h1>
                     <p id="admin-subtitle" class="text-[11px] sm:text-xs text-sky-200 font-medium truncate">載入店家資訊中...</p>
                 </div>
             </div>
@@ -843,7 +843,7 @@
             const storeDesc = store.Description || store.description || rawVals[7] || '';
             const storeLogo = store.Logo || store.logo || rawVals[3] || '';
 
-            document.getElementById('page-title').innerText = `${storeName} - 後台管理網站`;
+            document.getElementById('page-title').innerText = `${storeName} - 後台管理系統`;
             document.getElementById('admin-subtitle').innerText = storeName;
 
             const logoImg = document.getElementById('header-logo-img');
@@ -2614,7 +2614,7 @@
             }
 
             document.getElementById('admin-subtitle').innerText = name;
-            document.getElementById('page-title').innerText = `${name} - 後台管理網站`;
+            document.getElementById('page-title').innerText = `${name} - 後台管理系統`;
 
             const logoImg = document.getElementById('header-logo-img');
             const logoIcon = document.getElementById('header-logo-icon');
